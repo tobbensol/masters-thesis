@@ -1,13 +1,14 @@
-from typing import Callable
-from functions.data_filtering import filter_flights
-
 import pandas as pd
 import pickle
 import os.path
 
-from traffic.core import Traffic, Flight
 from datetime import datetime, timedelta
+from typing import Callable
+
+from traffic.core import Traffic, Flight
 from pyopensky.trino import Trino
+
+from functions.data_filtering import filter_flights
 
 ICAO_codes = {"bergen": "ENBR",
               "oslo": "ENGM",
@@ -54,17 +55,17 @@ def get_data_range(origin: str, destination: str, start: datetime, stop: datetim
     return flights
 
 
-def get_filtered_data_range(origin: str, destination: str, start: datetime, stop: datetime, filter: Callable[[Flight], bool]):
-    path = f"data/{filter.__name__}/{origin}-{destination}-{start.date()}-{stop.date()}.pkl"
+def get_filtered_data_range(origin: str, destination: str, start: datetime, stop: datetime, f: Callable[[Flight], bool]):
+    path = f"data/{f.__name__}/{origin}-{destination}-{start.date()}-{stop.date()}.pkl"
     if os.path.isfile(path):
-        with open(path, "rb") as f:
-            return pickle.load(f)
+        with open(path, "rb") as file:
+            return pickle.load(file)
     else: # get data if it doesnt
         unfiltered_flights = get_data_range(origin=origin, destination=destination, start=start, stop=stop)
-    filtered_flights = filter_flights(filter, unfiltered_flights)
+    filtered_flights = filter_flights(f, unfiltered_flights)
 
     os.makedirs(os.path.dirname(path), exist_ok=True)
     # and save the result
-    with open(path, "wb") as f:
-        pickle.dump(filtered_flights, f)
+    with open(path, "wb") as file:
+        pickle.dump(filtered_flights, file)
     return filtered_flights

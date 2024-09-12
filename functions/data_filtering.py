@@ -1,6 +1,7 @@
+from typing import Callable, List
+
 from traffic.core import Traffic, Flight
 from traffic.data import airports
-from typing import Callable, List
 
 ICAO_codes = {"bergen": "ENBR",
               "oslo": "ENGM",

@@ -1,4 +1,5 @@
 import math
+
 from traffic.core import Traffic
 
 
