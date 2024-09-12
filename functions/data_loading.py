@@ -20,7 +20,7 @@ query = Trino()
 
 
 def get_data_range(origin: str, destination: str, start: datetime, stop: datetime) -> Traffic:
-    path = f"data/{origin}-{destination}-{start.date()}-{stop.date()}.pkl"
+    path = f"data/unfiltered/{origin}-{destination}-{start.date()}-{stop.date()}.pkl"
 
     if os.path.isfile(path):
         with open(path, "rb") as f:
@@ -55,8 +55,7 @@ def get_data_range(origin: str, destination: str, start: datetime, stop: datetim
 
 
 def get_filtered_data_range(origin: str, destination: str, start: datetime, stop: datetime, filter: Callable[[Flight], bool]):
-    # return if it exists
-    path = f"data/{origin}-{destination}-{start.date()}-{stop.date()}-{filter.__name__}.pkl"
+    path = f"data/{filter.__name__}/{origin}-{destination}-{start.date()}-{stop.date()}.pkl"
     if os.path.isfile(path):
         with open(path, "rb") as f:
             return pickle.load(f)
@@ -64,6 +63,7 @@ def get_filtered_data_range(origin: str, destination: str, start: datetime, stop
         unfiltered_flights = get_data_range(origin=origin, destination=destination, start=start, stop=stop)
     filtered_flights = filter_flights(filter, unfiltered_flights)
 
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     # and save the result
     with open(path, "wb") as f:
         pickle.dump(filtered_flights, f)
