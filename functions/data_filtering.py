@@ -18,8 +18,8 @@ def filter_flights(f: Callable[[Flight], bool], flights: Traffic) -> Traffic:
     return filtered_traffic
 
 
-def complete_flights_filter(departure: str, arrival: str):
-    def get_complete_flights(flight: Flight) -> Traffic:
+def complete_flight_filter(departure: str, arrival: str):
+    def complete_flights(flight: Flight) -> Traffic:
         departure_airport = airports[ICAO_codes[departure]]
         arrival_airport = airports[ICAO_codes[arrival]]
 
@@ -29,11 +29,11 @@ def complete_flights_filter(departure: str, arrival: str):
         start_longitude, start_latitude = start
         end_longitude, end_latitude = end
 
-        # just the value i found filtered out the values the best
-        epsilon = 0.035
+        # just the value I found filtered out the values the best
+        epsilon = 0.03
         return (abs(departure_airport.latitude - start_latitude) < epsilon) and \
             (abs(departure_airport.longitude - start_longitude) < epsilon) and \
             (abs(arrival_airport.latitude - end_latitude) < epsilon) and \
             (abs(arrival_airport.longitude - end_longitude) < epsilon)
 
-    return get_complete_flights
+    return complete_flights

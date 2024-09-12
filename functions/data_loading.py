@@ -1,8 +1,11 @@
+from typing import Callable
+from functions.data_filtering import filter_flights
+
 import pandas as pd
 import pickle
 import os.path
 
-from traffic.core import Traffic
+from traffic.core import Traffic, Flight
 from datetime import datetime, timedelta
 from pyopensky.trino import Trino
 
@@ -49,3 +52,19 @@ def get_data_range(origin: str, destination: str, start: datetime, stop: datetim
     with open(path, "wb") as f:
         pickle.dump(flights, f)
     return flights
+
+
+def get_filtered_data_range(origin: str, destination: str, start: datetime, stop: datetime, filter: Callable[[Flight], bool]):
+    # return if it exists
+    path = f"data/{origin}-{destination}-{start.date()}-{stop.date()}-{filter.__name__}.pkl"
+    if os.path.isfile(path):
+        with open(path, "rb") as f:
+            return pickle.load(f)
+    else: # get data if it doesnt
+        unfiltered_flights = get_data_range(origin=origin, destination=destination, start=start, stop=stop)
+    filtered_flights = filter_flights(filter, unfiltered_flights)
+
+    # and save the result
+    with open(path, "wb") as f:
+        pickle.dump(filtered_flights, f)
+    return filtered_flights
