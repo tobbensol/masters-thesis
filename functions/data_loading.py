@@ -6,13 +6,12 @@ from traffic.core import Traffic
 from datetime import datetime, timedelta
 from pyopensky.trino import Trino
 
-
 ICAO_codes = {"bergen": "ENBR",
               "oslo": "ENGM",
-              "gatwick":"EGKK",
-              "heathrow":"EGLL",
+              "gatwick": "EGKK",
+              "heathrow": "EGLL",
               "new york": "KJFK",
-              "cape town":"FACT",
+              "cape town": "FACT",
               "los angeles": "KLAX"}
 query = Trino()
 
@@ -32,10 +31,10 @@ def get_data_range(origin: str, destination: str, start: datetime, stop: datetim
 
     for date in (start + timedelta(days=n) for n in range(days)):
         result = query.history(
-                            start=date,
-                            stop =date + timedelta(days=1),
-                            departure_airport=ICAO_codes[origin],
-                            arrival_airport=ICAO_codes[destination])
+            start=date,
+            stop=date + timedelta(days=1),
+            departure_airport=ICAO_codes[origin],
+            arrival_airport=ICAO_codes[destination])
         if result is not None:
             data.append(result.copy())
 
@@ -47,5 +46,6 @@ def get_data_range(origin: str, destination: str, start: datetime, stop: datetim
     flights = Traffic(final)
 
     # cache result
-    pickle.dump(flights, open(path, 'wb'))
+    with open(path, "wb") as f:
+        pickle.dump(flights, f)
     return flights
