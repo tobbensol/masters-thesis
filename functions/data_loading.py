@@ -5,10 +5,13 @@ import os.path
 from datetime import datetime, timedelta
 from typing import Callable
 
+import requests
 from traffic.core import Traffic, Flight
 from pyopensky.trino import Trino
 
 from functions.data_filtering import filter_flights
+
+client_id = 'b72279bf-a268-4cf1-96bb-2f2e290349df'
 
 ICAO_codes = {"bergen": "ENBR",
               "oslo": "ENGM",
@@ -69,3 +72,54 @@ def get_filtered_data_range(origin: str, destination: str, start: datetime, stop
     with open(path, "wb") as file:
         pickle.dump(filtered_flights, file)
     return filtered_flights
+
+
+def get_weather_station_id(name: str) -> str:
+    base_url = 'https://frost.met.no/sources/v0.jsonld'
+
+    params = {
+        'name': name,  # Search by names
+    }
+    response = requests.get(base_url, params=params, auth=(client_id, ''))
+    if response.status_code == 200:
+        data = response.json()
+
+        # Extract station IDs and names
+        for station in data.get('data', []):
+            return station['id']
+    else:
+        return f"Error: {response.status_code}, {response.text}"
+
+
+def get_wind_direction(name: str) -> pd.DataFrame:
+    base_url = 'https://frost.met.no/observations/v0.jsonld'
+    weather_station_id = get_weather_station_id(name)
+    params = {
+        'sources': weather_station_id,
+        'elements': 'wind_from_direction',
+        'referencetime': '2023-01-01/2024-01-01',
+    }
+
+    # Make the request with authentication
+    response = requests.get(base_url, params=params, auth=(client_id, ''))
+
+    # Check for successful request
+    if response.status_code == 200:
+        data = response.json()
+
+        # Process the response to extract the relevant data
+        observations = []
+
+        # Extract observations from the response
+        for item in data.get('data', []):
+            for observation in item.get('observations', []):
+                observations.append({
+                    'source': item['sourceId'],
+                    'time': item['referenceTime'],
+                    'wind_direction': observation['value']
+                })
+
+        return pd.DataFrame(observations)
+
+    else:
+        print(f"Error: {response.status_code}, {response.text}")
