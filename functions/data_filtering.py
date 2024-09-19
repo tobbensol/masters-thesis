@@ -1,4 +1,4 @@
-from typing import Callable, List
+from typing import Callable, Iterable
 
 from traffic.core import Traffic, Flight
 from traffic.data import airports
@@ -13,22 +13,20 @@ ICAO_codes = {"bergen": "ENBR",
 
 
 def filter_flights(f: Callable[[Flight], bool], flights: Traffic) -> Traffic:
-    filtered_flights: List[Flight] = filter(f, flights)
+    filtered_flights: Iterable[Flight] = filter(f, flights)
     filtered_traffic: Traffic = Traffic.from_flights(filtered_flights)
 
     return filtered_traffic
 
 
-def complete_flight_filter(departure: str, arrival: str):
-    def complete_flights(flight: Flight) -> Traffic:
+def complete_flight_filter(departure: str, arrival: str) -> Callable[[Flight], bool]:
+    # all filters must have this signature
+    def complete_flights(flight: Flight) -> bool:
         departure_airport = airports[ICAO_codes[departure]]
         arrival_airport = airports[ICAO_codes[arrival]]
 
-        start: Flight = flight.first('5 sec').data.get(['longitude', 'latitude']).median().values
-        end: Flight = flight.last('5 sec').data.get(['longitude', 'latitude']).median().values
-
-        start_longitude, start_latitude = start
-        end_longitude, end_latitude = end
+        start_longitude, start_latitude = flight.first('5 sec').data.get(['longitude', 'latitude']).median().values
+        end_longitude, end_latitude = flight.last('5 sec').data.get(['longitude', 'latitude']).median().values
 
         # just the value I found filtered out the values the best
         epsilon = 0.03

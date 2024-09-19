@@ -60,7 +60,7 @@ def get_filtered_data_range(origin: str, destination: str, start: datetime, stop
     if os.path.isfile(path):
         with open(path, "rb") as file:
             return pickle.load(file)
-    else: # get data if it doesnt
+    else: # get data if it doesn't exist yet
         unfiltered_flights = get_data_range(origin=origin, destination=destination, start=start, stop=stop)
     filtered_flights = filter_flights(f, unfiltered_flights)
 
