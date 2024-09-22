@@ -1,4 +1,4 @@
-from typing import Callable, List
+from typing import Callable, List, Sequence, Iterable
 
 from traffic.core import Traffic, Flight
 from traffic.data import airports
@@ -13,14 +13,14 @@ ICAO_codes = {"bergen": "ENBR",
 
 
 def filter_flights(f: Callable[[Flight], bool], flights: Traffic) -> Traffic:
-    filtered_flights: List[Flight] = filter(f, flights)
+    filtered_flights: Iterable[Flight] = filter(f, flights)
     filtered_traffic: Traffic = Traffic.from_flights(filtered_flights)
 
     return filtered_traffic
 
 
-def complete_flight_filter(departure: str, arrival: str):
-    def complete_flights(flight: Flight) -> Traffic:
+def complete_flight_filter(departure: str, arrival: str) -> Callable[[Flight], bool]:
+    def complete_flights(flight: Flight) -> bool:
         departure_airport = airports[ICAO_codes[departure]]
         arrival_airport = airports[ICAO_codes[arrival]]
 
@@ -38,3 +38,13 @@ def complete_flight_filter(departure: str, arrival: str):
             (abs(arrival_airport.longitude - end_longitude) < epsilon)
 
     return complete_flights
+
+
+def filter_by_bools(bools: Sequence[bool]) -> Callable[[Flight], bool]:
+    index = 0
+    def bool_filter(flight: Flight) -> bool:
+        nonlocal index
+        value = bools[index]
+        index += 1
+        return value
+    return bool_filter
