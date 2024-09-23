@@ -96,7 +96,7 @@ def get_wind_direction(name: str) -> pd.DataFrame:
     weather_station_id = get_weather_station_id(name)
     params = {
         'sources': weather_station_id,
-        'elements': 'wind_from_direction',
+        'elements': 'wind_from_direction,wind_speed',
         'referencetime': '2023-01-01/2024-01-01',
     }
 
@@ -112,13 +112,26 @@ def get_wind_direction(name: str) -> pd.DataFrame:
 
         # Extract observations from the response
         for item in data.get('data', []):
+            wind_direction = None
+            wind_speed = None
+
+            # Iterate over observations to extract both wind direction and wind speed
             for observation in item.get('observations', []):
+                if observation['elementId'] == 'wind_from_direction':
+                    wind_direction = observation['value']
+                elif observation['elementId'] == 'wind_speed':
+                    wind_speed = observation['value']
+
+            # Only append if both wind direction and speed are available
+            if wind_direction is not None and wind_speed is not None:
                 observations.append({
                     'source': item['sourceId'],
                     'time': item['referenceTime'],
-                    'wind_direction': observation['value']
+                    'wind_direction': wind_direction,
+                    'wind_speed': wind_speed
                 })
 
+        # Convert observations to a pandas DataFrame
         return pd.DataFrame(observations)
 
     else:

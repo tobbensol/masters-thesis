@@ -1,7 +1,10 @@
 import math
+import pandas as pd
+import numpy as np
 
 from datetime import datetime
 from traffic.core import Traffic
+
 
 
 def get_takeoff_and_landing_directions(flights: Traffic) -> Traffic:
@@ -14,3 +17,24 @@ def get_date(flights: Traffic) -> datetime:
     for flight in flights:
         timestamp: datetime = flight.first('30 sec').data.get(['timestamp']).median().values[0]
         yield timestamp
+
+
+def prepare_wind_data(df: pd.DataFrame):
+    df = df.copy()
+
+    df['time'] = pd.to_datetime(df['time'])
+    df.set_index('time', inplace=True)
+
+    df = df.loc[df["wind_direction"] != 0]
+
+    df["wind_direction"] = np.unwrap(np.deg2rad(df["wind_direction"]), period=2 * np.pi, discont=np.pi)
+
+    df = df.resample("s").mean(numeric_only=True)
+    df.interpolate(inplace=True)
+
+    df["wind_direction"] = df["wind_direction"] % (2 * np.pi)
+
+    df["x"] = np.sin(df["wind_direction"]) * df["wind_speed"]
+    df["y"] = np.cos(df["wind_direction"]) * df["wind_speed"]
+
+    return df
