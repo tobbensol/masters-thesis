@@ -8,11 +8,11 @@ from typing import Tuple
 
 
 
-def get_takeoff_and_landing_directions(flights: Traffic) -> Tuple[float, float]:
+def get_takeoff_and_landing_directions(flights: Traffic) -> Tuple[datetime, datetime, float, float]:
     for flight in flights:
-        start_direction: float = flight.first('30 sec').data.get(['heading']).median().values[0]
-        end_direction: float = flight.last('30 sec').data.get(['heading']).median().values[0]
-        yield start_direction * math.pi / 180, end_direction * math.pi / 180
+        start_direction, start_time = flight.first('30 sec').data.get(['heading', 'timestamp']).median().values
+        end_direction, end_time = flight.last('30 sec').data.get(['heading', 'timestamp']).median().values
+        yield start_time, end_time, start_direction * np.pi / 180, end_direction * np.pi / 180
 
 def get_date(flights: Traffic) -> datetime:
     for flight in flights:
