@@ -35,7 +35,10 @@ def prepare_wind_data(df: pd.DataFrame):
 
     df["wind_direction"] = df["wind_direction"] % (2 * np.pi)
 
-    df["x"] = np.sin(df["wind_direction"]) * df["wind_speed"]
-    df["y"] = np.cos(df["wind_direction"]) * df["wind_speed"]
+    df["x"] = np.sin(df["wind_direction"])
+    df["y"] = np.cos(df["wind_direction"])
+
+    df["x_scaled"] = df["x"] * df["wind_speed"]
+    df["y_scaled"] = df["y"] * df["wind_speed"]
 
     return df
