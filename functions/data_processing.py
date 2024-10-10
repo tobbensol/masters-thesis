@@ -1,9 +1,13 @@
 import math
+
+import gudhi
 import pandas as pd
 import numpy as np
 
 from datetime import datetime
-from traffic.core import Traffic
+
+from gudhi.alpha_complex import AlphaComplex
+from traffic.core import Traffic, Flight
 from typing import Tuple
 
 
@@ -18,6 +22,20 @@ def get_date(flights: Traffic) -> datetime:
     for flight in flights:
         timestamp: datetime = flight.first('30 sec').data.get(['timestamp']).median().values[0]
         yield timestamp
+
+def get_flight_points(flight: Flight):
+    # Resample data and interpolate missing values
+    resampled = flight.data.resample('1s', on="timestamp").first()
+    resampled[['latitude', 'longitude']] = resampled[['latitude', 'longitude']].interpolate(method='linear')
+    points = resampled[['latitude', 'longitude']].dropna().to_numpy()
+    return points
+
+def generate_alpha_tree(flight: Flight) -> gudhi.simplex_tree.SimplexTree:
+    points = get_flight_points(flight)
+    alpha_complex: gudhi.alpha_complex = AlphaComplex(points=points)
+    tree: gudhi.simplex_tree.SimplexTree = alpha_complex.create_simplex_tree()
+    tree.compute_persistence()
+    return tree
 
 
 def prepare_wind_data(df: pd.DataFrame):

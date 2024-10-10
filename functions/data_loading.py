@@ -1,15 +1,18 @@
+import gudhi
 import pandas as pd
 import pickle
 import os.path
 
 from datetime import datetime, timedelta
-from typing import Callable
+from typing import Callable, List
 
 import requests
+from tqdm import tqdm
 from traffic.core import Traffic, Flight
 from pyopensky.trino import Trino
 
 from functions.data_filtering import filter_flights
+from functions.data_processing import generate_alpha_tree
 
 client_id = 'b72279bf-a268-4cf1-96bb-2f2e290349df'
 
@@ -72,6 +75,24 @@ def get_filtered_data_range(origin: str, destination: str, start: datetime, stop
     with open(path, "wb") as file:
         pickle.dump(filtered_flights, file)
     return filtered_flights
+
+
+def get_flight_persistances(traffic: Traffic, file_name) -> List[gudhi.simplex_tree.SimplexTree]:
+    path = f"data/persistances/{file_name}.pk"
+    if os.path.isfile(path):
+        with open(path, "rb") as file:
+            return pickle.load(file)
+
+    to_save = []
+    for i in tqdm(range(len(traffic))):
+        flight = traffic[i]
+        tree = generate_alpha_tree(flight)
+        to_save.append(tree)
+
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "wb") as file:
+        pickle.dump(to_save, file)
+    return to_save
 
 
 def get_weather_station_id(name: str) -> str:
