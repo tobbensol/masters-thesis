@@ -4,9 +4,10 @@ import pickle
 import os.path
 
 from datetime import datetime, timedelta
-from typing import Callable, List
+from typing import Callable, List, Tuple, Optional
 
 import requests
+from Crypto.SelfTest.Cipher.test_CFB import file_name
 from tqdm import tqdm
 from traffic.core import Traffic, Flight
 from pyopensky.trino import Trino
@@ -26,18 +27,18 @@ ICAO_codes = {"bergen": "ENBR",
 query = Trino()
 
 
-def get_data_range(origin: str, destination: str, start: datetime, stop: datetime) -> Traffic:
-    path = f"data/unfiltered/{origin}-{destination}-{start.date()}-{stop.date()}.pkl"
+def get_data_range(origin: str, destination: str, start: datetime, stop: datetime) -> Tuple[Traffic, str]:
+    file_name = f"{origin}-{destination}-{start.date()}-{stop.date()}.pkl"
+    path = f"data/unfiltered/{file_name}"
 
     if os.path.isfile(path):
         with open(path, "rb") as f:
-            return pickle.load(f)
+            return pickle.load(f), file_name
 
     data = []
     days = (stop - start).days
     if days <= 0:
-        print("stop date has to be after the start date")
-        return
+        raise ValueError("The stop date must be after the start date.")
 
     for date in (start + timedelta(days=n) for n in range(days)):
         result = query.history(
@@ -58,30 +59,31 @@ def get_data_range(origin: str, destination: str, start: datetime, stop: datetim
     # cache result
     with open(path, "wb") as f:
         pickle.dump(flights, f)
-    return flights
+    return flights, file_name
 
 
-def get_filtered_data_range(origin: str, destination: str, start: datetime, stop: datetime, f: Callable[[Flight], bool]):
-    path = f"data/{f.__name__}/{origin}-{destination}-{start.date()}-{stop.date()}.pkl"
+def get_filtered_data_range(traffic, file_name, f: Callable[[Flight], bool]) -> Tuple[Optional[Traffic], str]:
+    file_name = f"{f.__name__}/{file_name}"
+    path = f"data/{file_name}"
     if os.path.isfile(path):
         with open(path, "rb") as file:
-            return pickle.load(file)
-    else: # get data if it doesn't exist yet
-        unfiltered_flights = get_data_range(origin=origin, destination=destination, start=start, stop=stop)
-    filtered_flights = filter_flights(f, unfiltered_flights)
+            return pickle.load(file), file_name
+    print(path)
+    filtered_flights = filter_flights(f, traffic)
 
     os.makedirs(os.path.dirname(path), exist_ok=True)
     # and save the result
     with open(path, "wb") as file:
         pickle.dump(filtered_flights, file)
-    return filtered_flights
+    return filtered_flights, file_name
 
 
-def get_flight_persistances(traffic: Traffic, file_name) -> List[gudhi.simplex_tree.SimplexTree]:
-    path = f"data/persistances/{file_name}.pk"
+def get_flight_persistence(traffic: Traffic, file_name) -> Tuple[List[gudhi.simplex_tree.SimplexTree], str]:
+    file_name = f"persistence/{file_name}"
+    path = f"data/{file_name}"
     if os.path.isfile(path):
         with open(path, "rb") as file:
-            return pickle.load(file)
+            return pickle.load(file), file_name
 
     to_save = []
     for i in tqdm(range(len(traffic))):
@@ -92,7 +94,7 @@ def get_flight_persistances(traffic: Traffic, file_name) -> List[gudhi.simplex_t
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "wb") as file:
         pickle.dump(to_save, file)
-    return to_save
+    return to_save, file_name
 
 
 def get_weather_station_id(name: str) -> str:
