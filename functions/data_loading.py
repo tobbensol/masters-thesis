@@ -68,7 +68,6 @@ def get_filtered_data_range(traffic, file_name, f: Callable[[Flight], bool]) -> 
     if os.path.isfile(path):
         with open(path, "rb") as file:
             return pickle.load(file), file_name
-    print(path)
     filtered_flights = filter_flights(f, traffic)
 
     os.makedirs(os.path.dirname(path), exist_ok=True)
