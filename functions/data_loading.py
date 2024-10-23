@@ -55,6 +55,8 @@ def get_data_range(origin: str, destination: str, start: datetime, stop: datetim
     # make flight object
     final = result.rename(columns={'time': 'timestamp', 'lat': 'latitude', 'lon': 'longitude'})
     flights = Traffic(final)
+    flights.data = flights.data.dropna(subset=["heading"])
+    flights.resample("1s")
 
     # cache result
     with open(path, "wb") as f:
@@ -68,6 +70,7 @@ def get_filtered_data_range(traffic, file_name, f: Callable[[Flight], bool]) -> 
     if os.path.isfile(path):
         with open(path, "rb") as file:
             return pickle.load(file), file_name
+    print(path)
     filtered_flights = filter_flights(f, traffic)
 
     os.makedirs(os.path.dirname(path), exist_ok=True)

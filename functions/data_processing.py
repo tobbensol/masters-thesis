@@ -23,15 +23,8 @@ def get_date(flights: Traffic) -> datetime:
         timestamp: datetime = flight.first('30 sec').data.get(['timestamp']).median().values[0]
         yield timestamp
 
-def get_flight_points(flight: Flight):
-    # Resample data and interpolate missing values
-    resampled = flight.data.resample('1s', on="timestamp").first()
-    resampled[['latitude', 'longitude']] = resampled[['latitude', 'longitude']].interpolate(method='linear')
-    points = resampled[['latitude', 'longitude']].dropna().to_numpy()
-    return points
-
 def generate_alpha_tree(flight: Flight) -> gudhi.simplex_tree.SimplexTree:
-    points = get_flight_points(flight)
+    points = flight.data[['latitude', 'longitude']]
     alpha_complex: gudhi.alpha_complex = AlphaComplex(points=points)
     tree: gudhi.simplex_tree.SimplexTree = alpha_complex.create_simplex_tree()
     tree.compute_persistence()
