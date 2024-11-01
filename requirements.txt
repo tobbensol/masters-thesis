@@ -3,7 +3,7 @@ pandas==2.2.3
 pyopensky==2.9
 Requests==2.32.3
 traffic==2.10.2
-gudhi==3.10.1
+gudhi==3.9.0
 jupyter==1.0.0
 scikit-learn==1.5.2
 matplotlib==3.9.2
