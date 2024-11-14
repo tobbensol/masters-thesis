@@ -24,12 +24,42 @@ def get_date(flights: Traffic) -> datetime:
         yield timestamp
 
 def generate_alpha_tree(flight: Flight) -> gudhi.simplex_tree.SimplexTree:
-    points = flight.data[['latitude', 'longitude']]
+    points = flight.data[['latitude', 'longitude']].to_numpy()
     alpha_complex: gudhi.alpha_complex = AlphaComplex(points=points)
     tree: gudhi.simplex_tree.SimplexTree = alpha_complex.create_simplex_tree()
     tree.compute_persistence()
     return tree
 
+def remove_outliers(flight: Flight) -> Flight:
+    """
+    this doesn't work for flights over the pacific ocean, would have to import some library for that
+    :param flight: The flight you would like to remove outliars from
+    :return: The same flight without outliers
+    """
+    df = flight.data.copy()
+
+    # Calculate differences between consecutive latitude and longitude values
+    lat_diff = np.diff(df['latitude'])
+    lon_diff = np.diff(df['longitude'])
+
+    # Approximate distance using Euclidean formula on lat/lon changes
+    approx_distances = np.sqrt(lat_diff ** 2 + lon_diff ** 2)
+
+    # Insert NaN at the beginning to align with DataFrame length
+    approx_distances = np.insert(approx_distances, 0, np.nan)
+    df['approx_distance'] = approx_distances
+
+    # Define thresholds for approximate distances
+    min_distance_threshold = 0.0001  # Minimum allowable distance in degrees
+    max_distance_threshold = 0.005  # Maximum allowable distance in degrees
+
+    # Filter out rows where distance is either too small (likely duplicate) or too large (likely outlier)
+    df_cleaned = df[
+        ((df['approx_distance'] >= min_distance_threshold) & (df['approx_distance'] <= max_distance_threshold)) |
+        (df['approx_distance'].isna())  # Keep the first point
+        ]
+    new_flight = Flight(df_cleaned)
+    return new_flight
 
 def prepare_wind_data(df: pd.DataFrame):
     df = df.copy()

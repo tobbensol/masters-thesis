@@ -9,7 +9,8 @@ ICAO_codes = {"bergen": "ENBR",
               "heathrow": "EGLL",
               "new york": "KJFK",
               "cape town": "FACT",
-              "los angeles": "KLAX"}
+              "los angeles": "KLAX",
+              "amsterdam": "EHAM"}
 
 
 def filter_flights(f: Callable[[Flight], bool], flights: Traffic) -> Traffic:
@@ -19,7 +20,7 @@ def filter_flights(f: Callable[[Flight], bool], flights: Traffic) -> Traffic:
     return filtered_traffic
 
 
-def complete_flight_filter(departure: str, arrival: str) -> Callable[[Flight], bool]:
+def complete_flight_filter(departure: str, arrival: str, epsilon: float = 0.03) -> Callable[[Flight], bool]:
     # all filters must have this signature
     def complete_flights(flight: Flight) -> bool:
         departure_airport = airports[ICAO_codes[departure]]
@@ -29,7 +30,6 @@ def complete_flight_filter(departure: str, arrival: str) -> Callable[[Flight], b
         end_longitude, end_latitude = flight.last('5 sec').data.get(['longitude', 'latitude']).median().values
 
         # just the value I found filtered out the values the best
-        epsilon = 0.03
         return (abs(departure_airport.latitude - start_latitude) < epsilon) and \
             (abs(departure_airport.longitude - start_longitude) < epsilon) and \
             (abs(arrival_airport.latitude - end_latitude) < epsilon) and \
