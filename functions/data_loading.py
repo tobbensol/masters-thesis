@@ -12,13 +12,13 @@ from traffic.core import Traffic, Flight
 from pyopensky.trino import Trino
 
 from functions.data_filtering import filter_flights, ICAO_codes
-from functions.data_processing import generate_alpha_tree, remove_outliers
+from functions.data_processing import generate_alpha_tree, remove_outliers, split_flights
 
 client_id = 'b72279bf-a268-4cf1-96bb-2f2e290349df'
 query = Trino()
 
 
-def get_data_range(origin: str, destination: str, start: datetime, stop: datetime, load_results: bool = True) -> Tuple[Traffic, str]:
+def get_data_range(origin: str, destination: str, start: datetime, stop: datetime, load_results: bool = True) -> Tuple[List[Flight], str]:
     file_name = f"{origin}-{destination}-{start.date()}-{stop.date()}.pkl"
     path = f"data/unfiltered/{file_name}"
 
@@ -47,15 +47,15 @@ def get_data_range(origin: str, destination: str, start: datetime, stop: datetim
     final = result.rename(columns={'time': 'timestamp', 'lat': 'latitude', 'lon': 'longitude'})
     flights = Traffic(final)
     flights.data = flights.data.dropna(subset=["heading", "latitude", "longitude"])
-    flights.resample("1s")
+    final_list = split_flights(flights)
 
     # cache result
     with open(path, "wb") as file:
-        pickle.dump(flights, file)
-    return flights, file_name
+        pickle.dump(final_list, file)
+    return final_list, file_name
 
 
-def get_filtered_data_range(traffic, file_name, f: Callable[[Flight], bool], load_results: bool = True) -> Tuple[Optional[Traffic], str]:
+def get_filtered_data_range(flights: List[Flight], file_name, f: Callable[[Flight], bool], load_results: bool = True) -> Tuple[Optional[List[Flight]], str]:
     file_name = f"{f.__name__}/{file_name}"
     path = f"data/{file_name}"
 
@@ -63,7 +63,7 @@ def get_filtered_data_range(traffic, file_name, f: Callable[[Flight], bool], loa
         with open(path, "rb") as file:
             return pickle.load(file), file_name
 
-    filtered_flights = filter_flights(f, traffic)
+    filtered_flights = filter_flights(f, flights)
 
     os.makedirs(os.path.dirname(path), exist_ok=True)
     # and save the result
@@ -92,7 +92,7 @@ def get_removed_outliers(traffic: Traffic, file_name: str, load_results: bool = 
     return fixed_traffic, file_name
 
 
-def get_flight_persistence(traffic: Traffic, file_name: str, load_results: bool = True) -> Tuple[List[gudhi.simplex_tree.SimplexTree], str]:
+def get_flight_persistence(flights: List[Flight], file_name: str, load_results: bool = True) -> Tuple[List[gudhi.simplex_tree.SimplexTree], str]:
     file_name = f"persistence/{file_name}"
     path = f"data/{file_name}"
     if os.path.isfile(path) and load_results:
@@ -100,8 +100,8 @@ def get_flight_persistence(traffic: Traffic, file_name: str, load_results: bool 
             return pickle.load(file), file_name
 
     to_save = []
-    for i in tqdm(range(len(traffic))):
-        flight = traffic[i]
+    for i in tqdm(range(len(flights))):
+        flight = flights[i]
         tree = generate_alpha_tree(flight)
         to_save.append(tree)
 

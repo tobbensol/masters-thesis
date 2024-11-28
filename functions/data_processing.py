@@ -4,12 +4,11 @@ import gudhi
 import pandas as pd
 import numpy as np
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from gudhi.alpha_complex import AlphaComplex
 from traffic.core import Traffic, Flight
-from typing import Tuple
-
+from typing import Tuple, List
 
 
 def get_takeoff_and_landing_directions(flights: Traffic) -> Tuple[datetime, datetime, float, float]:
@@ -60,6 +59,31 @@ def remove_outliers(flight: Flight) -> Flight:
         ]
     new_flight = Flight(df_cleaned)
     return new_flight
+
+def split_flights(traffic: Traffic, threshold: timedelta = timedelta(seconds=60)) -> List[Flight]:
+    flights = []
+    for flight in traffic:
+        # Calculate time differences between consecutive rows
+        time_diffs = np.diff(flight.data["timestamp"])
+
+        # Identify indices where the time gap exceeds the threshold
+        split_indices = np.where(time_diffs > threshold)[0]
+
+        # Split the DataFrame into segments
+        dfs = []
+        start_idx = 0
+        for split_idx in split_indices:
+            # Add the segment up to the split point
+            dfs.append(flight.data.iloc[start_idx: split_idx + 1])
+            start_idx = split_idx + 1
+        # Add the final segment
+        dfs.append(flight.data.iloc[start_idx:])
+
+        # Convert each DataFrame segment into a Flight object
+        for df in dfs:
+            flights.append(Flight(df))
+
+    return flights
 
 def prepare_wind_data(df: pd.DataFrame):
     df = df.copy()

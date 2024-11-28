@@ -1,4 +1,4 @@
-from typing import Callable, Sequence, Iterable
+from typing import Callable, Sequence, Iterable, List
 
 from traffic.core import Traffic, Flight
 from traffic.data import airports
@@ -10,14 +10,16 @@ ICAO_codes = {"bergen": "ENBR",
               "new york": "KJFK",
               "cape town": "FACT",
               "los angeles": "KLAX",
-              "amsterdam": "EHAM"}
+              "amsterdam": "EHAM",
+              "mallorca": "LEPA",
+              "barcelona": "LEBL",
+              "frankfurt":"EDDF",
+              "berlin":"EDDB"}
 
 
-def filter_flights(f: Callable[[Flight], bool], flights: Traffic) -> Traffic:
+def filter_flights(f: Callable[[Flight], bool], flights: List[Flight]) -> List[Flight]:
     filtered_flights: Iterable[Flight] = filter(f, flights)
-    filtered_traffic: Traffic = Traffic.from_flights(filtered_flights)
-
-    return filtered_traffic
+    return list(filtered_flights)
 
 
 def complete_flight_filter(departure: str, arrival: str, epsilon: float = 0.03) -> Callable[[Flight], bool]:
