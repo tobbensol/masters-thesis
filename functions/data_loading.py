@@ -12,7 +12,7 @@ from traffic.core import Traffic, Flight
 from pyopensky.trino import Trino
 
 from functions.data_filtering import filter_flights, ICAO_codes
-from functions.data_processing import generate_alpha_tree, remove_outliers, split_flights
+from functions.data_processing import generate_alpha_tree, remove_outliers, split_flights, flight_pers
 
 client_id = 'b72279bf-a268-4cf1-96bb-2f2e290349df'
 query = Trino()
@@ -99,11 +99,7 @@ def get_flight_persistence(flights: List[Flight], file_name: str, load_results: 
         with open(path, "rb") as file:
             return pickle.load(file), file_name
 
-    to_save = []
-    for i in tqdm(range(len(flights))):
-        flight = flights[i]
-        tree = generate_alpha_tree(flight)
-        to_save.append(tree)
+    to_save = flight_pers(flights)
 
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "wb") as file:

@@ -1,12 +1,14 @@
 import math
 
 import gudhi
+import numpy
 import pandas as pd
 import numpy as np
 
 from datetime import datetime, timedelta
 
 from gudhi.alpha_complex import AlphaComplex
+from tqdm import tqdm
 from traffic.core import Traffic, Flight
 from typing import Tuple, List
 
@@ -23,11 +25,20 @@ def get_date(flights: Traffic) -> datetime:
         yield timestamp
 
 def generate_alpha_tree(flight: Flight) -> gudhi.simplex_tree.SimplexTree:
-    points = flight.data[['latitude', 'longitude']].to_numpy()
+    points = flight.data[['latitude', 'longitude']].dropna(axis="rows").to_numpy()
     alpha_complex: gudhi.alpha_complex = AlphaComplex(points=points)
     tree: gudhi.simplex_tree.SimplexTree = alpha_complex.create_simplex_tree()
     tree.compute_persistence()
     return tree
+
+def flight_pers(flights):
+    to_save = []
+    for i in tqdm(range(len(flights))):
+        flight = flights[i]
+        tree = generate_alpha_tree(flight)
+        to_save.append(tree)
+    return to_save
+
 
 def remove_outliers(flight: Flight) -> Flight:
     """
