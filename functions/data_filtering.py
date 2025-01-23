@@ -1,5 +1,6 @@
 from typing import Callable, Sequence, Iterable, List
 
+import pandas as pd
 from traffic.core import Traffic, Flight
 from traffic.data import airports
 
@@ -48,3 +49,19 @@ def filter_by_bools(bools: Sequence[bool]) -> Callable[[Flight], bool]:
         index += 1
         return value
     return bool_filter
+
+
+def large_gap_filter(flight: Flight):
+    """
+    Filters out flights that have more than 30 secs of missing data.
+    :param flight: The flight
+    :return: True if the flight has no gaps longer than 30 seconds, False otherwise
+    """
+    indexes = flight.data[["longitude", "latitude"]].drop_duplicates().index
+    timestamps = flight.data.iloc[indexes]["timestamp"].to_numpy()
+
+    time_gap = pd.Series(timestamps, index=indexes).diff()
+    if any(time_gap > pd.Timedelta(seconds=30)):
+        return False
+    else:
+        return True

@@ -1,4 +1,5 @@
 import gudhi
+import numpy as np
 import pandas as pd
 import pickle
 import os.path
@@ -7,9 +8,11 @@ from datetime import datetime, timedelta
 from typing import Callable, List, Tuple, Optional
 
 import requests
+from scipy.cluster.hierarchy import linkage
 from tqdm import tqdm
 from traffic.core import Traffic, Flight
 from pyopensky.trino import Trino
+from traffic.data import opensky
 
 from functions.data_filtering import filter_flights, ICAO_codes
 from functions.data_processing import generate_alpha_tree, remove_outliers, split_flights, flight_pers
@@ -169,3 +172,50 @@ def get_wind_direction(name: str) -> pd.DataFrame:
 
     else:
         print(f"Error: {response.status_code}, {response.text}")
+
+
+def linkage_cluster_persistances(trees: List[gudhi.simplex_tree.SimplexTree], file_name: str, load_results=True):
+    path = f"./data/linkage_clustering/{file_name}.pkl"
+    if os.path.isfile(path) and load_results:
+        with open(path, "rb") as f:
+            return pickle.load(f)
+
+    condensed_distance_matrix = []
+    for i in tqdm(range(len(trees))):
+        for j in range(i + 1, len(trees)):
+            pers_i = trees[i].persistence_intervals_in_dimension(0)
+            pers_j = trees[j].persistence_intervals_in_dimension(0)
+            dist = gudhi.bottleneck_distance(np.array(pers_i), np.array(pers_j), 0.0001)
+            condensed_distance_matrix.append(dist)
+
+    Z = linkage(condensed_distance_matrix, "complete")
+
+    with open(path, "wb") as file:
+        pickle.dump(Z, file)
+    return Z
+
+
+def flights_from_query(query, n: int, file_name: str, delta_time: pd.Timedelta = pd.Timedelta(minutes=15)):
+    if os.path.isfile(file_name):
+        with open(file_name, "rb") as file:
+            return pickle.load(file)
+
+    flights = []
+    for _, row in tqdm(query.sample(n=n, random_state=42).iterrows(), total=n):
+        # take at most 10 minutes before and 10 minutes after the landing or go-around
+        start_time = row["time"] - delta_time
+        stop_time = row["time"] + delta_time
+
+        # fetch the data from OpenSky Network
+        flights.append(
+            opensky.history(
+                start=start_time.strftime("%Y-%m-%d %H:%M:%S"),
+                stop=stop_time.strftime("%Y-%m-%d %H:%M:%S"),
+                callsign=row["callsign"],
+                return_flight=True,
+            )
+        )
+
+    with open(file_name, "wb") as file:
+        pickle.dump(flights, file)
+    return flights

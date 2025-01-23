@@ -1,4 +1,5 @@
 import math
+from collections import deque
 
 import gudhi
 import numpy
@@ -7,6 +8,7 @@ import numpy as np
 
 from datetime import datetime, timedelta
 
+from sklearn.cluster import DBSCAN
 from gudhi.alpha_complex import AlphaComplex
 from tqdm import tqdm
 from traffic.core import Traffic, Flight
@@ -19,25 +21,59 @@ def get_takeoff_and_landing_directions(flights: Traffic) -> Tuple[datetime, date
         end_direction, end_time = flight.last('30 sec').data.get(['heading', 'timestamp']).median().values
         yield start_time, end_time, start_direction * np.pi / 180, end_direction * np.pi / 180
 
+
 def get_date(flights: Traffic) -> datetime:
     for flight in flights:
         timestamp: datetime = flight.first('30 sec').data.get(['timestamp']).median().values[0]
         yield timestamp
 
-def generate_alpha_tree(flight: Flight) -> gudhi.simplex_tree.SimplexTree:
-    points = flight.data[['latitude', 'longitude']].dropna(axis="rows").to_numpy()
-    alpha_complex: gudhi.alpha_complex = AlphaComplex(points=points)
-    tree: gudhi.simplex_tree.SimplexTree = alpha_complex.create_simplex_tree()
-    tree.compute_persistence()
-    return tree
 
-def flight_pers(flights):
+def flight_pers(flights) -> List[gudhi.simplex_tree.SimplexTree]:
     to_save = []
     for i in tqdm(range(len(flights))):
         flight = flights[i]
         tree = generate_alpha_tree(flight)
         to_save.append(tree)
     return to_save
+
+
+def generate_alpha_tree(flight: Flight) -> gudhi.simplex_tree.SimplexTree:
+    points_dataframe = flight.data[['timestamp', 'latitude', 'longitude']].dropna(axis="rows")
+    points_dataframe.set_index(pd.DatetimeIndex(points_dataframe['timestamp']), inplace=True)
+    points_dataframe = points_dataframe[['latitude', 'longitude']]
+
+    inliers = remove_outliers_z_score(points_dataframe.to_numpy())
+    points_dataframe = points_dataframe[inliers]
+    inliers = remove_outliers_z_score(points_dataframe.to_numpy(), threshold=3)
+    points_dataframe = points_dataframe[inliers]
+
+    resampled_dataframe = points_dataframe.resample("1s").mean()
+
+    resampled_dataframe.interpolate(method="time", inplace=True)
+
+    points = points_dataframe[['latitude', 'longitude']].to_numpy()
+    alpha_complex: gudhi.alpha_complex = AlphaComplex(points=points)
+    tree: gudhi.simplex_tree.SimplexTree = alpha_complex.create_simplex_tree()
+    tree.compute_persistence()
+    return tree
+
+
+def remove_outliers_z_score(points, threshold=3):
+    # Compute z-scores for the data
+    z_scores = np.abs((points - np.mean(points, axis=0)) / np.std(points, axis=0))
+
+    inliers = np.all(z_scores <= threshold, axis=1)
+    return inliers
+
+
+def remove_outliers_dbscan(points, eps=1):
+    # Apply DBSCAN clustering
+    min_samples = len(points) // 2
+    dbscan = DBSCAN(eps=eps, min_samples=min_samples)
+    labels = dbscan.fit_predict(points)
+
+    inliers = labels >= 0
+    return inliers
 
 
 def remove_outliers(flight: Flight) -> Flight:
