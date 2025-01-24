@@ -37,16 +37,19 @@ def flight_pers(flights) -> List[gudhi.simplex_tree.SimplexTree]:
     return to_save
 
 
+from gudhi.alpha_complex import AlphaComplex
+
+
 def generate_alpha_tree(flight: Flight) -> gudhi.simplex_tree.SimplexTree:
     # get points and set timestamp as index for interpolation later
     points_dataframe = flight.data[['timestamp', 'latitude', 'longitude']].dropna(axis="rows")
     points_dataframe.set_index(pd.DatetimeIndex(points_dataframe['timestamp']), inplace=True)
-    points_dataframe = points_dataframe[['latitude', 'longitude']]
+    points_dataframe = points_dataframe[['latitude', 'longitude']].drop_duplicates()
 
     # remove outliers
-    inliers = remove_outliers_z_score(points_dataframe.to_numpy())
+    inliers = remove_outliers_dbscan(points_dataframe.to_numpy())
     points_dataframe = points_dataframe[inliers]
-    inliers = remove_outliers_z_score(points_dataframe.to_numpy(), threshold=3)
+    inliers = remove_outliers_z_score(points_dataframe.to_numpy())
     points_dataframe = points_dataframe[inliers]
 
     # interpolate
