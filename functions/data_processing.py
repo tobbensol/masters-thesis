@@ -28,13 +28,15 @@ def get_date(flights: Traffic) -> datetime:
         yield timestamp
 
 
-def flight_pers(flights) -> List[gudhi.simplex_tree.SimplexTree]:
-    to_save = []
+def flight_pers(flights) -> Tuple[List[gudhi.simplex_tree.SimplexTree], List[numpy.ndarray[float]]]:
+    trees = []
+    paths = []
     for i in tqdm(range(len(flights))):
         flight = flights[i]
-        tree = generate_alpha_tree(flight)
-        to_save.append(tree)
-    return to_save
+        tree, path = generate_alpha_tree(flight)
+        trees.append(tree)
+        paths.append(path)
+    return trees, paths
 
 
 from gudhi.alpha_complex import AlphaComplex
@@ -43,25 +45,26 @@ from gudhi.alpha_complex import AlphaComplex
 def generate_alpha_tree(flight: Flight) -> gudhi.simplex_tree.SimplexTree:
     # get points and set timestamp as index for interpolation later
     points_dataframe = flight.data[['timestamp', 'latitude', 'longitude']].dropna(axis="rows")
-    points_dataframe.set_index(pd.DatetimeIndex(points_dataframe['timestamp']), inplace=True)
+    points_dataframe = points_dataframe.set_index(pd.DatetimeIndex(points_dataframe['timestamp']))
     points_dataframe = points_dataframe[['latitude', 'longitude']].drop_duplicates()
 
     # remove outliers
     inliers = remove_outliers_dbscan(points_dataframe.to_numpy())
     points_dataframe = points_dataframe[inliers]
+
     inliers = remove_outliers_z_score(points_dataframe.to_numpy())
     points_dataframe = points_dataframe[inliers]
 
     # interpolate
     interpolated_dataframe = points_dataframe.resample("1s").mean()
-    interpolated_dataframe.interpolate(method="time", inplace=True)
+    interpolated_dataframe = interpolated_dataframe.interpolate(method="time")
 
     # get points and generate persistence
     points = interpolated_dataframe[['latitude', 'longitude']].to_numpy()
     alpha_complex: gudhi.alpha_complex = AlphaComplex(points=points)
     tree: gudhi.simplex_tree.SimplexTree = alpha_complex.create_simplex_tree()
     tree.compute_persistence()
-    return tree
+    return tree, points
 
 
 def remove_outliers_z_score(points, threshold=3):

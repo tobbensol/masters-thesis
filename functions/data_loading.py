@@ -174,7 +174,7 @@ def get_wind_direction(name: str) -> pd.DataFrame:
         print(f"Error: {response.status_code}, {response.text}")
 
 
-def linkage_cluster_persistances(trees: List[gudhi.simplex_tree.SimplexTree], file_name: str, load_results=True):
+def linkage_cluster_persistances(trees: List[gudhi.simplex_tree.SimplexTree], file_name: str, dimension = 1, load_results=True):
     path = f"./data/linkage_clustering/{file_name}.pkl"
     if os.path.isfile(path) and load_results:
         with open(path, "rb") as f:
@@ -183,8 +183,8 @@ def linkage_cluster_persistances(trees: List[gudhi.simplex_tree.SimplexTree], fi
     condensed_distance_matrix = []
     for i in tqdm(range(len(trees))):
         for j in range(i + 1, len(trees)):
-            pers_i = trees[i].persistence_intervals_in_dimension(0)
-            pers_j = trees[j].persistence_intervals_in_dimension(0)
+            pers_i = trees[i].persistence_intervals_in_dimension(dimension)
+            pers_j = trees[j].persistence_intervals_in_dimension(dimension)
             dist = gudhi.bottleneck_distance(np.array(pers_i), np.array(pers_j), 0.0001)
             condensed_distance_matrix.append(dist)
 
