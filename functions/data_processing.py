@@ -8,6 +8,7 @@ import numpy as np
 
 from datetime import datetime, timedelta
 
+from scipy.signal import savgol_filter
 from sklearn.cluster import DBSCAN
 from gudhi.alpha_complex import AlphaComplex
 from tqdm import tqdm
@@ -38,18 +39,14 @@ def flight_pers(flights) -> Tuple[List[gudhi.simplex_tree.SimplexTree], List[num
         paths.append(path)
     return trees, paths
 
-
-from gudhi.alpha_complex import AlphaComplex
-
-
 def generate_alpha_tree(flight: Flight) -> gudhi.simplex_tree.SimplexTree:
     # get points and set timestamp as index for interpolation later
-    points_dataframe = flight.data[['timestamp', 'latitude', 'longitude']].dropna(axis="rows")
+    points_dataframe = flight.data[['timestamp', 'latitude', 'longitude']].copy().dropna(axis="rows")
     points_dataframe = points_dataframe.set_index(pd.DatetimeIndex(points_dataframe['timestamp']))
     points_dataframe = points_dataframe[['latitude', 'longitude']].drop_duplicates()
 
     # remove outliers
-    inliers = remove_outliers_dbscan(points_dataframe.to_numpy())
+    inliers = remove_outliers_dbscan(points_dataframe.to_numpy(), len(points_dataframe)//2)
     points_dataframe = points_dataframe[inliers]
 
     inliers = remove_outliers_z_score(points_dataframe.to_numpy())
@@ -75,15 +72,70 @@ def remove_outliers_z_score(points, threshold=3):
     return inliers
 
 
-def remove_outliers_dbscan(points, eps=1):
+def remove_outliers_dbscan(points, min_samples, eps=1):
     # Apply DBSCAN clustering
-    min_samples = len(points) // 2
     dbscan = DBSCAN(eps=eps, min_samples=min_samples)
     labels = dbscan.fit_predict(points)
 
     inliers = labels >= 0
     return inliers
 
+
+def sublevelset_persistence(flights: List[Flight]):
+    trees = []
+    paths = []
+    for i in tqdm(range(len(flights))):
+        data = clean_flight_data(flights[i])
+
+        st = build_sublevelset_filtration(data)
+        st.compute_persistence()
+
+        tree = st.persistence_intervals_in_dimension(0)
+        tree[tree.shape[0]-1, tree.shape[1]-1] = max(data)
+
+        trees.append(tree)
+        paths.append(data)
+    return trees, paths
+
+def build_sublevelset_filtration(Y):
+    """
+    Y: array-like
+        Array of function values
+    """
+    st = gudhi.SimplexTree()
+    for i in range(len(Y)):
+        # 0-simplices
+        st.insert([i], filtration=Y[i])
+
+        if i < len(Y) - 1:
+            # 1-simplices
+            st.insert([i, i + 1], filtration=max(Y[i], Y[i + 1]))
+
+    return st
+
+
+def clean_flight_data(flight: Flight):
+    data = flight.data.copy()
+    altitude = "baroaltitude"
+
+    if altitude not in data.columns:
+        altitude = "altitude"
+
+    data = pd.DataFrame(data={
+        altitude: list(data[altitude]),
+        "index": range(len(data))
+    }, index=pd.DatetimeIndex(data["timestamp"])
+    ).dropna()
+
+    inliers = remove_outliers_dbscan(data, eps=350, min_samples=30)
+    data = data[inliers]
+    # print(len(inliers) - sum(inliers))
+
+    data = data.resample("1s").mean()
+    data = data[altitude].astype("float32").interpolate("time")
+    data = savgol_filter(data, 200, 2)
+
+    return data
 
 def remove_outliers(flight: Flight) -> Flight:
     """

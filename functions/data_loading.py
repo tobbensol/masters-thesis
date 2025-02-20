@@ -174,8 +174,7 @@ def get_wind_direction(name: str) -> pd.DataFrame:
         print(f"Error: {response.status_code}, {response.text}")
 
 
-def linkage_cluster_persistances(trees: List[gudhi.simplex_tree.SimplexTree], file_name: str, dimension = 1, load_results=True):
-    path = f"./data/linkage_clustering/{file_name}.pkl"
+def linkage_cluster_persistances(trees: List[gudhi.simplex_tree.SimplexTree], path: str, dimension = 1, load_results=True):
     if os.path.isfile(path) and load_results:
         with open(path, "rb") as f:
             return pickle.load(f)
