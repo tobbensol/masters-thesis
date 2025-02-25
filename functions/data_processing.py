@@ -35,8 +35,9 @@ def flight_pers(flights) -> Tuple[List[gudhi.simplex_tree.SimplexTree], List[num
     for i in tqdm(range(len(flights))):
         flight = flights[i]
         tree, path = generate_alpha_tree(flight)
-        trees.append(tree)
+        trees.append(tree.persistence_intervals_in_dimension(1))
         paths.append(path)
+
     return trees, paths
 
 def generate_alpha_tree(flight: Flight) -> gudhi.simplex_tree.SimplexTree:
@@ -53,7 +54,7 @@ def generate_alpha_tree(flight: Flight) -> gudhi.simplex_tree.SimplexTree:
     points_dataframe = points_dataframe[inliers]
 
     # interpolate
-    interpolated_dataframe = points_dataframe.resample("1s").mean()
+    interpolated_dataframe = points_dataframe.resample("5s").mean()
     interpolated_dataframe = interpolated_dataframe.interpolate(method="time")
 
     # get points and generate persistence
@@ -86,6 +87,7 @@ def sublevelset_persistence(flights: List[Flight]):
     paths = []
     for i in tqdm(range(len(flights))):
         data = clean_flight_data(flights[i])
+        path = np.column_stack((np.arange(len(data)), data))
 
         st = build_sublevelset_filtration(data)
         st.compute_persistence()
@@ -94,7 +96,7 @@ def sublevelset_persistence(flights: List[Flight]):
         tree[tree.shape[0]-1, tree.shape[1]-1] = max(data)
 
         trees.append(tree)
-        paths.append(data)
+        paths.append(path)
     return trees, paths
 
 def build_sublevelset_filtration(Y):
@@ -127,15 +129,15 @@ def clean_flight_data(flight: Flight):
     }, index=pd.DatetimeIndex(data["timestamp"])
     ).dropna()
 
-    inliers = remove_outliers_dbscan(data, eps=350, min_samples=30)
+    inliers = remove_outliers_dbscan(data, eps=1000, min_samples=75)
     data = data[inliers]
     # print(len(inliers) - sum(inliers))
 
-    data = data.resample("1s").mean()
+    data = data.resample("5s").mean()
     data = data[altitude].astype("float32").interpolate("time")
-    data = savgol_filter(data, 200, 2)
+    #data = savgol_filter(data, 100, 2)
 
-    return data
+    return data.to_numpy()
 
 def remove_outliers(flight: Flight) -> Flight:
     """

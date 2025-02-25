@@ -194,8 +194,8 @@ def linkage_cluster_persistances(trees: List[gudhi.simplex_tree.SimplexTree], pa
     return Z
 
 
-def flights_from_query(query, n: int, file_name: str, delta_time: pd.Timedelta = pd.Timedelta(minutes=15)):
-    if os.path.isfile(file_name):
+def flights_from_query(query, n: int, file_name: str, delta_time: pd.Timedelta = pd.Timedelta(minutes=15), load_results=True):
+    if os.path.isfile(file_name) and load_results:
         with open(file_name, "rb") as file:
             return pickle.load(file)
 

@@ -61,7 +61,7 @@ def large_gap_filter(flight: Flight):
     timestamps = flight.data.iloc[indexes]["timestamp"].to_numpy()
 
     time_gap = pd.Series(timestamps, index=indexes).diff()
-    if any(time_gap > pd.Timedelta(seconds=60)):
+    if any(time_gap > pd.Timedelta(seconds=30)):
         return False
     else:
         return len(timestamps) > 250
