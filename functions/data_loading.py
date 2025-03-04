@@ -15,7 +15,7 @@ from pyopensky.trino import Trino
 from traffic.data import opensky
 
 from functions.data_filtering import filter_flights, ICAO_codes
-from functions.data_processing import generate_alpha_tree, remove_outliers, split_flights, flight_pers
+from functions.data_processing import remove_outliers, split_flights, flight_pers
 
 client_id = 'b72279bf-a268-4cf1-96bb-2f2e290349df'
 query = Trino()
@@ -194,13 +194,14 @@ def linkage_cluster_persistances(trees: List[gudhi.simplex_tree.SimplexTree], pa
     return Z
 
 
-def flights_from_query(query, n: int, file_name: str, delta_time: pd.Timedelta = pd.Timedelta(minutes=15), load_results=True):
+def flights_from_query(query, file_name: str, delta_time: pd.Timedelta = pd.Timedelta(minutes=15), load_results=True):
     if os.path.isfile(file_name) and load_results:
         with open(file_name, "rb") as file:
             return pickle.load(file)
 
     flights = []
-    for _, row in tqdm(query.sample(n=n, random_state=42).iterrows(), total=n):
+    other_data = []
+    for _, row in tqdm(query.iterrows(), total=query.shape[0]):
         # take at most 10 minutes before and 10 minutes after the landing or go-around
         start_time = row["time"] - delta_time
         stop_time = row["time"] + delta_time
@@ -214,7 +215,14 @@ def flights_from_query(query, n: int, file_name: str, delta_time: pd.Timedelta =
                 return_flight=True,
             )
         )
+        n_approaches = row["n_approaches"]
+        wind_speed_knts = row["wind_speed_knts"]
+        visibility_m = row["visibility_m"]
+        temperature_deg = row["temperature_deg"]
 
+        other_data.append([n_approaches, wind_speed_knts, visibility_m, temperature_deg])
+
+    other_data = np.array(other_data)
     with open(file_name, "wb") as file:
-        pickle.dump(flights, file)
-    return flights
+        pickle.dump((flights, other_data), file)
+    return flights, other_data

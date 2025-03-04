@@ -57,7 +57,7 @@ def large_gap_filter(flight: Flight):
     :param flight: The flight
     :return: True if the flight has no gaps longer than 30 seconds, False otherwise
     """
-    indexes = flight.data[["longitude", "latitude"]].drop_duplicates().index
+    indexes = flight.data[["longitude", "latitude", "geoaltitude"]].dropna(axis="rows").drop_duplicates().index
     timestamps = flight.data.iloc[indexes]["timestamp"].to_numpy()
 
     time_gap = pd.Series(timestamps, index=indexes).diff()
