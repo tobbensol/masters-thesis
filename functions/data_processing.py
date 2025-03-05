@@ -1,6 +1,3 @@
-import math
-from collections import deque
-
 import gudhi
 import numpy
 import pandas as pd
@@ -28,12 +25,17 @@ def get_date(flights: Traffic) -> datetime:
         timestamp: datetime = flight.first('30 sec').data.get(['timestamp']).median().values[0]
         yield timestamp
 
-
-def flight_pers(flights) -> Tuple[List[gudhi.simplex_tree.SimplexTree], List[numpy.ndarray]]:
+def flight_persistence(flights) -> Tuple[List[gudhi.simplex_tree.SimplexTree], List[numpy.ndarray]]:
     trees = []
     paths = []
     for i in tqdm(range(len(flights))):
-        data = clean_flight_data(flights[i], ['latitude', 'longitude'], drop_duplicates=True, f=x_y_filter)
+        def x_y_filter(data: np.ndarray[float]) -> np.ndarray[bool]:
+            i1 = remove_outliers_z_score(data.to_numpy())
+            i2 = remove_outliers_dbscan(data.to_numpy(), len(data) // 2)
+            return np.logical_and(i1, i2)
+
+        data = get_columns_timestamp_index(flights[i], ['latitude', 'longitude'])
+        data = clean_flight_data(data, drop_duplicates=True, f=x_y_filter)
 
         alpha_complex: gudhi.alpha_complex = AlphaComplex(points=data)
         tree: gudhi.simplex_tree.SimplexTree = alpha_complex.create_simplex_tree()
@@ -43,17 +45,14 @@ def flight_pers(flights) -> Tuple[List[gudhi.simplex_tree.SimplexTree], List[num
         paths.append(data)
     return trees, paths
 
-def x_y_filter(data: np.ndarray[float])-> np.ndarray[bool]:
-    i1 = remove_outliers_z_score(data.to_numpy())
-    i2 = remove_outliers_dbscan(data.to_numpy(), len(data) // 2)
-    return np.logical_and(i1, i2)
-
 def sublevelset_persistence(flights: List[Flight]):
     trees = []
     paths = []
     for i in tqdm(range(len(flights))):
-        filter = (lambda x: remove_outliers_dbscan(x, eps=1000, min_samples=75))
-        data = clean_flight_data(flights[i], ["geoaltitude"], f = filter)
+        f = (lambda x: remove_outliers_dbscan(x, eps=1000, min_samples=75))
+
+        data = get_columns_timestamp_index(flights[i], ["geoaltitude"])
+        data = clean_flight_data(data, f = f)
         data = data.reshape(data.shape[0] * data.shape[1])
         path = np.column_stack((np.arange(len(data)), data))
 
@@ -67,6 +66,51 @@ def sublevelset_persistence(flights: List[Flight]):
         paths.append(path)
     return trees, paths
 
+
+def sublevelset_heading_persistence(flights: List[Flight]):
+    trees = []
+    paths = []
+    for i in tqdm(range(len(flights))):
+        f = None
+        data = get_columns_timestamp_index(flights[i], ["track"])
+        data["track"] = np.unwrap(np.deg2rad(data["track"]), period=2 * np.pi, discont=np.pi)
+
+        data = clean_flight_data(data, f = f)
+        data = data.reshape(data.shape[0] * data.shape[1])
+        path = np.column_stack((np.arange(len(data)), data))
+
+        st = build_sublevelset_filtration(data)
+        st.compute_persistence()
+
+        tree = st.persistence_intervals_in_dimension(0)
+        tree[tree.shape[0]-1, tree.shape[1]-1] = max(data)
+
+        trees.append(tree)
+        paths.append(path)
+    return trees, paths
+
+
+def clean_flight_data(data: np.ndarray[float], drop_duplicates: bool = False, f: Callable[[np.ndarray[float]], np.ndarray[bool]]=None) -> np.ndarray:
+    if drop_duplicates:
+        data = data.drop_duplicates()
+
+    if f is not None:
+        inliers = f(data)
+        data = data[inliers]
+
+    data = data.resample("5s").mean()
+    data = data.interpolate("time")
+    cols = []
+    for i in data.columns:
+        col = data[i].to_numpy()
+        cols.append(savgol_filter(x=col, window_length=25, polyorder=2))
+    data = np.array(cols).T
+    return data
+
+def get_columns_timestamp_index(flight: Flight, columns: List[str]):
+    data = flight.data[(columns+['timestamp'])].copy().dropna(axis="rows")
+    data = data.set_index(pd.DatetimeIndex(data['timestamp']))
+    return data[columns]
 
 def remove_outliers_z_score(points, threshold=3):
     # Compute z-scores for the data
@@ -100,26 +144,6 @@ def build_sublevelset_filtration(Y):
 
     return st
 
-
-def clean_flight_data(flight: Flight, columns: List[str], drop_duplicates: bool = False, f: Callable[[np.ndarray[float]], np.ndarray[bool]]=None) -> np.ndarray:
-    data = flight.data[(columns+['timestamp'])].copy().dropna(axis="rows")
-    data = data.set_index(pd.DatetimeIndex(data['timestamp']))
-    data = data[columns]
-    if drop_duplicates:
-        data = data.drop_duplicates()
-
-    if filter is not None:
-        inliers = f(data)
-        data = data[inliers]
-
-    data = data.resample("5s").mean()
-    data = data.interpolate("time")
-    cols = []
-    for i in columns:
-        col = data[i].to_numpy()
-        cols.append(savgol_filter(x=col, window_length=25, polyorder=2))
-    data = np.array(cols).T
-    return data
 
 def remove_outliers(flight: Flight) -> Flight:
     """

@@ -15,7 +15,7 @@ from pyopensky.trino import Trino
 from traffic.data import opensky
 
 from functions.data_filtering import filter_flights, ICAO_codes
-from functions.data_processing import remove_outliers, split_flights, flight_pers
+from functions.data_processing import remove_outliers, split_flights, flight_persistence
 
 client_id = 'b72279bf-a268-4cf1-96bb-2f2e290349df'
 query = Trino()
@@ -102,7 +102,7 @@ def get_flight_persistence(flights: List[Flight], file_name: str, load_results: 
         with open(path, "rb") as file:
             return pickle.load(file), file_name
 
-    to_save = flight_pers(flights)
+    to_save = flight_persistence(flights)
 
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "wb") as file:
