@@ -45,13 +45,13 @@ def flight_persistence(flights) -> Tuple[List[gudhi.simplex_tree.SimplexTree], L
         paths.append(data)
     return trees, paths
 
-def sublevelset_persistence(flights: List[Flight]):
+def sublevelset_persistence(flights: List[Flight], parameter: str):
     trees = []
     paths = []
     for i in tqdm(range(len(flights))):
         f = (lambda x: remove_outliers_dbscan(x, eps=1000, min_samples=75))
 
-        data = get_columns_timestamp_index(flights[i], ["geoaltitude"])
+        data = get_columns_timestamp_index(flights[i], [parameter])
         data = clean_flight_data(data, f = f)
         data = data.reshape(data.shape[0] * data.shape[1])
         path = np.column_stack((np.arange(len(data)), data))
