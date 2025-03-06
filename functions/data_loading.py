@@ -15,7 +15,9 @@ from pyopensky.trino import Trino
 from traffic.data import opensky
 
 from functions.data_filtering import filter_flights, ICAO_codes
-from functions.data_processing import remove_outliers, split_flights, flight_persistence
+from functions.data_processing import remove_outliers, split_flights, flight_persistence, sublevelset_persistence, \
+    sublevelset_heading_persistence
+from functions.objects import PersistenceData
 
 client_id = 'b72279bf-a268-4cf1-96bb-2f2e290349df'
 query = Trino()
@@ -226,3 +228,28 @@ def flights_from_query(query, file_name: str, delta_time: pd.Timedelta = pd.Time
     with open(file_name, "wb") as file:
         pickle.dump((flights, other_data), file)
     return flights, other_data
+
+
+def get_flight_persistances(flights: List[Flight], file_name, load_results: bool = True) -> Tuple[PersistenceData, PersistenceData, PersistenceData, PersistenceData]:
+    path = f"data/{file_name}"
+
+    if os.path.isfile(path) and load_results:
+        with open(path, "rb") as file:
+            return pickle.load(file)
+
+    LL_persistence, LL_paths = flight_persistence(flights)
+    LL_data = PersistenceData(LL_persistence, LL_paths, "LL")
+
+    A_persistence, A_paths = sublevelset_persistence(flights, "geoaltitude")
+    A_data = PersistenceData(A_persistence, A_paths, "A")
+
+    S_persistence, S_paths = sublevelset_persistence(flights, "groundspeed")
+    S_data = PersistenceData(S_persistence, S_paths, "S")
+
+    H_persistence, H_paths = sublevelset_heading_persistence(flights)
+    H_data = PersistenceData(H_persistence, H_paths, "H")
+
+    pers_objects = (LL_data, A_data, S_data, H_data)
+    with open(path, "wb") as file:
+        pickle.dump(pers_objects, file)
+    return pers_objects
