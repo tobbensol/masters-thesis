@@ -184,8 +184,8 @@ def linkage_cluster_persistances(trees: List[gudhi.simplex_tree.SimplexTree], pa
     condensed_distance_matrix = []
     for i in tqdm(range(len(trees))):
         for j in range(i + 1, len(trees)):
-            pers_i = trees[i].persistence_intervals_in_dimension(dimension)
-            pers_j = trees[j].persistence_intervals_in_dimension(dimension)
+            pers_i = trees[i]
+            pers_j = trees[j]
             dist = gudhi.bottleneck_distance(np.array(pers_i), np.array(pers_j), 0.0001)
             condensed_distance_matrix.append(dist)
 

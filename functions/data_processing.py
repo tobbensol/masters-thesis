@@ -5,6 +5,7 @@ import numpy as np
 
 from datetime import datetime, timedelta
 
+from numpy import ndarray
 from scipy.signal import savgol_filter
 from sklearn.cluster import DBSCAN
 from gudhi.alpha_complex import AlphaComplex
@@ -29,13 +30,10 @@ def flight_persistence(flights) -> Tuple[List[gudhi.simplex_tree.SimplexTree], L
     trees = []
     paths = []
     for i in tqdm(range(len(flights))):
-        def x_y_filter(data: np.ndarray[float]) -> np.ndarray[bool]:
-            i1 = remove_outliers_z_score(data.to_numpy())
-            i2 = remove_outliers_dbscan(data.to_numpy(), len(data) // 2)
-            return np.logical_and(i1, i2)
+        f = (lambda x: remove_outliers_dbscan(x, min_samples=25, eps = 0.05))
 
         data = get_columns_timestamp_index(flights[i], ['latitude', 'longitude'])
-        data = clean_flight_data(data, drop_duplicates=True, f=x_y_filter)
+        data = clean_flight_data(data, drop_duplicates=True, f=f)
 
         alpha_complex: gudhi.alpha_complex = AlphaComplex(points=data)
         tree: gudhi.simplex_tree.SimplexTree = alpha_complex.create_simplex_tree()
@@ -120,7 +118,7 @@ def remove_outliers_z_score(points, threshold=3):
     return inliers
 
 
-def remove_outliers_dbscan(points, min_samples, eps=1):
+def remove_outliers_dbscan(points, min_samples: int, eps: float) -> ndarray[bool]:
     # Apply DBSCAN clustering
     dbscan = DBSCAN(eps=eps, min_samples=min_samples)
     labels = dbscan.fit_predict(points)

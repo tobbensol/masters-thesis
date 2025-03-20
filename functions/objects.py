@@ -28,18 +28,30 @@ class PersistenceData:
     def compute_persistence_stats(self):
         """Computes statistics for the persistence diagrams."""
         dataset = []
+
         for pers in self.persistence:
             births, deaths = pers[:, 0], pers[:, 1]
             lifespans = deaths - births
 
-            data_row = [len(pers)]  # Number of persistence pairs
-            lifespans.sort()
-            top_5 = np.pad(lifespans[:5], (0, max(0, 5 - len(lifespans))), mode='constant')
+            # Sort indices by lifespans in descending order
+            sorted_indices = np.argsort(lifespans)[::-1]
 
-            mean = np.mean(lifespans) if lifespans.size else 0
-            median = np.median(lifespans) if lifespans.size else 0
+            # Apply sorting to births, deaths, and lifespans
+            sorted_births = births[sorted_indices]
+            sorted_deaths = deaths[sorted_indices]
+            sorted_lifespans = lifespans[sorted_indices]
 
-            data_row.extend(list(top_5) + [mean, median])
+            # Get top 5 elements, padded if necessary
+            top_5_births = np.pad(sorted_births[:5], (0, max(0, 5 - len(sorted_births))), mode='constant')
+            top_5_deaths = np.pad(sorted_deaths[:5], (0, max(0, 5 - len(sorted_deaths))), mode='constant')
+            top_5_lifespans = np.pad(sorted_lifespans[:5], (0, max(0, 5 - len(sorted_lifespans))), mode='constant')
+
+            # Compute statistics
+            mean_lifespan = np.mean(lifespans) if lifespans.size else 0
+            median_lifespan = np.median(lifespans) if lifespans.size else 0
+
+            # Create data row with number of persistence pairs, top 5 values, mean, and median
+            data_row = [len(pers), mean_lifespan, median_lifespan] + list(top_5_lifespans) + list(top_5_births) + list(top_5_deaths)
             dataset.append(data_row)
 
         return np.array(dataset)
@@ -48,12 +60,14 @@ class PersistenceData:
         """Computes landscape transformations for persistence diagrams."""
         landscapes = [self.landscape_model.fit_transform([pers]) for pers in self.persistence]
         landscapes = np.array(landscapes)
-        return landscapes.reshape(landscapes.shape[0], landscapes.shape[2])
+        self.landscapes = landscapes.reshape(landscapes.shape[0], landscapes.shape[2])
+        return self.landscapes
 
-    def plot_diagram(self, index, axs=None, add_landscape:bool=False):
+    def plot_diagram(self, index, axs=None, add_landscape:bool=False, save_svg=False):
         if axs is None:
             fig_count = 3 if add_landscape else 2
-            fig, axs = plt.subplots(fig_count, 1, figsize=(5, 5*fig_count))
+            fig, axs = plt.subplots(1, fig_count, figsize=(6*fig_count, 5))
+            fig.subplots_adjust(wspace=0.3)
 
         path = self.paths[index]
         pers = self.persistence[index]
@@ -82,20 +96,23 @@ class PersistenceData:
             axs[2].legend()
             axs[2].set_title("Persistence Landscape")
 
+        return fig
+
+
     @staticmethod
-    def plot_multiple_diagrams(objects, index, landscapes: bool = False):
+    def plot_multiple_diagrams(objects, index, add_landscape:bool=False):
         """Plots multiple persistence diagrams and landscapes side by side."""
         num_objects = len(objects)
-        object_fig_count = 3 if landscapes else 2
+        object_fig_count = 3 if add_landscape else 2
 
-        fig, axs = plt.subplots(object_fig_count, num_objects,
-                                figsize=(5 * num_objects, 5 * object_fig_count))  # 3 rows, N columns
+        fig, axs = plt.subplots(num_objects, object_fig_count,
+                                figsize=(5 * object_fig_count, 5 * num_objects))  # 3 rows, N columns
 
         if num_objects == 1:
             axs = np.expand_dims(axs, axis=1)  # Ensure axs is always 2D (3 x N)
 
         for idx, obj in enumerate(objects):
-            obj.plot_diagram(index, axs=axs[:, idx])  # Pass one column of subplots to each object
+            obj.plot_diagram(index, axs=axs[idx, :], add_landscape=add_landscape)  # Pass one column of subplots to each object
 
         plt.tight_layout()
         plt.show()
@@ -105,54 +122,63 @@ class Models:
     def __init__(self, seed):
         self.regressors = {
             "Support Vector Machines": [svm.SVR(), {
-                "C": [0.1, 1, 10],
-                "kernel": ["rbf", "poly"],
-                "degree": [2, 3, 4],
+                "C": [0.1, 1, 10, 100],  # Regularization strength
+                "degree": [2, 3, 4],  # Only used for "poly" kernel
+                "gamma": ["scale", "auto"],  # Kernel coefficient
             }],
-            "Base line": [DummyRegressor(strategy="mean"), {
 
-            }],
-            "Multi-layer Perception": [MLPRegressor(random_state=seed, max_iter=5000), {
-                "hidden_layer_sizes": [10, 20, 30],
+            "Base line": [DummyRegressor(strategy="mean"), {}],  # Fine as is
 
+            "Multi-layer Perceptron": [MLPRegressor(random_state=seed, max_iter=5000), {
+                "hidden_layer_sizes": [(10,), (25,), (25, 25), (10, 10)],  # Different layer structures
+                "alpha": [0.0001, 0.001, 0.01],  # L2 regularization
+                "learning_rate": ["constant", "adaptive"],  # Learning rate strategy
             }],
+
             "K Nearest Neighbors": [KNeighborsRegressor(), {
-                "n_neighbors": [5, 10, 20, 40],
-                "p": [1, 2, 3]
+                "n_neighbors": [5, 10, 25, 50],  # Range of neighbors
+                "weights": ["uniform", "distance"],  # Weighting scheme
             }],
-            "Random Forrest Regressor": [RandomForestRegressor(random_state=seed), {
-                "max_depth": [3, 6],
-                "n_estimators": [25, 50, 100]
+
+            "Random Forest Regressor": [RandomForestRegressor(random_state=seed), {
+                "n_estimators": [25, 50, 150],  # More trees for better stability
+                "max_depth": [5, 10, 20],  # None allows full depth
             }],
+
             "Decision Tree Regressor": [DecisionTreeRegressor(random_state=seed), {
+                "max_depth": [5, 10, 20],  # Depth of the tree
                 "min_samples_split": [2, 3, 4],
                 "min_samples_leaf": [1, 2, 3]
-            }],
+            }]
         }
 
         self.classifiers = {
-            "Support Vector Machines": [svm.SVC(random_state=seed), {
-                "C": [0.1, 1, 10],
-                "kernel": ["rbf", "poly"],
-                "degree": [2, 3, 4],
+            "Support Vector Machines": [svm.SVC(random_state=seed, probability=True, class_weight="balanced"), {
+                "C": [0.1, 1, 10, 100],  # Regularization strength
+                "degree": [2, 3, 4],  # Only used for "poly" kernel
+                "gamma": ["scale", "auto"],  # Kernel coefficient
             }],
-            "Base line": [DummyClassifier(strategy="most_frequent"), {
 
-            }],
-            "Multi-layer Perception": [MLPClassifier(random_state=seed, max_iter=5000), {
-                "hidden_layer_sizes": [10, 20, 30],
+            "Base line": [DummyClassifier(strategy="most_frequent"), {}],  # Fine as is
 
+            "Multi-layer Perceptron": [MLPClassifier(random_state=seed, max_iter=5000), {
+                "hidden_layer_sizes": [(10,), (25,), (25, 25), (10, 10)],  # Different layer structures
+                "alpha": [0.001, 0.01],  # L2 regularization
+                "learning_rate": ["constant", "adaptive"],  # Learning rate strategy
             }],
+
             "K Nearest Neighbors": [KNeighborsClassifier(), {
-                "n_neighbors": [5, 10, 20, 40],
-                "p": [1, 2, 3]
+                "n_neighbors": [5, 15, 50],  # Range of neighbors
+                "weights": ["uniform", "distance"],  # Weighting scheme
             }],
-            "Random Forrest Regressor": [RandomForestClassifier(random_state=seed), {
-                "max_depth": [3, 6],
-                "n_estimators": [50, 100, 300]
+
+            "Random Forest Classifier": [RandomForestClassifier(random_state=seed, class_weight="balanced"), {
+                "n_estimators": [25, 50, 150],  # More trees for better stability
+                "max_depth": [5, 10, 20],  # None allows full depth
             }],
-            "Decision Tree Regressor": [DecisionTreeClassifier(random_state=seed), {
+
+            "Decision Tree Classifier": [DecisionTreeClassifier(random_state=seed, class_weight="balanced"), {
+                "max_depth": [5, 10, 20],  # Depth of the tree
                 "min_samples_split": [2, 3, 4],
-                "min_samples_leaf": [1, 2, 3]
-            }],
+            }]
         }
