@@ -36,7 +36,9 @@ def get_data_range(origin: str, destination: str, start: datetime, stop: datetim
     if days <= 0:
         raise ValueError("The stop date must be after the start date.")
 
-    for date in (start + timedelta(days=n) for n in range(days)):
+    day_range = [start + timedelta(days=n) for n in range(days)]
+
+    for date in tqdm(day_range, total=days):
         result = query.history(
             start=date,
             stop=date + timedelta(days=1),
@@ -97,19 +99,20 @@ def get_removed_outliers(traffic: Traffic, file_name: str, load_results: bool = 
     return fixed_traffic, file_name
 
 
-def get_flight_persistence(flights: List[Flight], file_name: str, load_results: bool = True) -> Tuple[List[gudhi.simplex_tree.SimplexTree], str]:
+def get_flight_persistence(flights: List[Flight], file_name: str, load_results: bool = True) -> Tuple[List[gudhi.simplex_tree.SimplexTree],List[np.ndarray], str]:
     file_name = f"persistence/{file_name}"
     path = f"data/{file_name}"
     if os.path.isfile(path) and load_results:
         with open(path, "rb") as file:
-            return pickle.load(file), file_name
+            trees, paths = pickle.load(file)
+            return trees, paths, file_name
 
-    to_save = flight_persistence(flights)
+    trees, paths = flight_persistence(flights)
 
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "wb") as file:
-        pickle.dump(to_save, file)
-    return to_save, file_name
+        pickle.dump((trees, paths), file)
+    return trees, paths, file_name
 
 
 def get_weather_station_id(name: str) -> str:
@@ -176,7 +179,7 @@ def get_wind_direction(name: str) -> pd.DataFrame:
         print(f"Error: {response.status_code}, {response.text}")
 
 
-def linkage_cluster_persistances(trees: List[gudhi.simplex_tree.SimplexTree], path: str, dimension = 1, load_results=True):
+def linkage_cluster_persistances(trees: List[gudhi.simplex_tree.SimplexTree], path: str, load_results=True):
     if os.path.isfile(path) and load_results:
         with open(path, "rb") as f:
             return pickle.load(f)
