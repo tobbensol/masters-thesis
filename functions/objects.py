@@ -30,28 +30,34 @@ class PersistenceData:
         dataset = []
 
         for pers in self.persistence:
+            if len(pers) == 0:
+                dataset.append([0] * 38)  # Placeholder for empty persistence diagram
+                continue
+
             births, deaths = pers[:, 0], pers[:, 1]
             lifespans = deaths - births
+            mid_points = (births + lifespans)/2
 
-            # Sort indices by lifespans in descending order
-            sorted_indices = np.argsort(lifespans)[::-1]
+            count = len(pers)
+            L_mu = np.sum(lifespans)
+            if L_mu > 0:
+                entropy = -np.sum(lifespans/L_mu * np.log2(lifespans/L_mu))
+            else:
+                entropy = 0
 
-            # Apply sorting to births, deaths, and lifespans
-            sorted_births = births[sorted_indices]
-            sorted_deaths = deaths[sorted_indices]
-            sorted_lifespans = lifespans[sorted_indices]
+            data_row = [count, entropy]
 
-            # Get top 5 elements, padded if necessary
-            top_5_births = np.pad(sorted_births[:5], (0, max(0, 5 - len(sorted_births))), mode='constant')
-            top_5_deaths = np.pad(sorted_deaths[:5], (0, max(0, 5 - len(sorted_deaths))), mode='constant')
-            top_5_lifespans = np.pad(sorted_lifespans[:5], (0, max(0, 5 - len(sorted_lifespans))), mode='constant')
-
-            # Compute statistics
-            mean_lifespan = np.mean(lifespans) if lifespans.size else 0
-            median_lifespan = np.median(lifespans) if lifespans.size else 0
-
-            # Create data row with number of persistence pairs, top 5 values, mean, and median
-            data_row = [len(pers), mean_lifespan, median_lifespan] + list(top_5_lifespans) + list(top_5_births) + list(top_5_deaths)
+            for i in [births, deaths, lifespans, mid_points]:
+                mean = np.mean(i)
+                std = np.std(i)
+                median = np.median(i)
+                range_val = np.max(i) - np.min(i)
+                p10 = np.percentile(i, 10)
+                p25 = np.percentile(i, 25)
+                p75 = np.percentile(i, 75)
+                p90 = np.percentile(i, 90)
+                iqr = p75 - p25
+                data_row.extend([mean, std, median, iqr, range_val, p10, p25, p75, p90])
             dataset.append(data_row)
 
         return np.array(dataset)
@@ -73,16 +79,17 @@ class PersistenceData:
         pers = self.persistence[index]
         landscape = self.landscapes[index]
 
-        num_points = path.shape[0]
-        colors = np.linspace(0, 1, num_points)
-
-        scatter = axs[0].scatter(path[:, 0], path[:, 1], c=colors, cmap="plasma", edgecolors="none")
-        axs[0].set_title(self.plot_text[0])
-        axs[0].set_xlabel(self.plot_text[1])
-        axs[0].set_ylabel(self.plot_text[2])
-
-        cbar = plt.colorbar(scatter, ax=axs[0])
-        cbar.set_label("Time Step")
+        if self.plot_text[1] != "Timestep":
+            num_points = path.shape[0]
+            colors = np.linspace(0, 1, num_points)
+            scatter = axs[0].scatter(path[:, 1], path[:, 0], c=colors, cmap="plasma", edgecolors="none", )
+            cbar = plt.colorbar(scatter, ax=axs[0])
+            cbar.set_label("Time Step")
+        else:
+            axs[0].scatter(path[:, 1], path[:, 0], cmap="plasma", edgecolors="none")
+        axs[0].set_title(self.plot_text[0], fontsize=16)
+        axs[0].set_xlabel(self.plot_text[1], fontsize=16)
+        axs[0].set_ylabel(self.plot_text[2], fontsize=16)
 
         gudhi.persistence_graphical_tools.plot_persistence_diagram(pers, axes=axs[1])
         axs[1].set_title("Persistence Diagram")
@@ -94,7 +101,8 @@ class PersistenceData:
                 axs[2].plot(landscape[i * resolution:(i + 1) * resolution], label=f"Landscape {i + 1}")
 
             axs[2].legend()
-            axs[2].set_title("Persistence Landscape")
+            axs[2].set_title("Persistence Landscape", fontsize=16)
+            axs[2].set_xlabel("Resolution steps", fontsize=16)
 
         return fig
 
@@ -121,13 +129,13 @@ class PersistenceData:
 class Models:
     def __init__(self, seed):
         self.regressors = {
+            "Base line": [DummyRegressor(strategy="mean"), {}],  # Fine as is
+
             "Support Vector Machines": [svm.SVR(), {
                 "C": [0.1, 1, 10, 100],  # Regularization strength
                 "degree": [2, 3, 4],  # Only used for "poly" kernel
                 "gamma": ["scale", "auto"],  # Kernel coefficient
             }],
-
-            "Base line": [DummyRegressor(strategy="mean"), {}],  # Fine as is
 
             "Multi-layer Perceptron": [MLPRegressor(random_state=seed, max_iter=5000), {
                 "hidden_layer_sizes": [(10,), (25,), (25, 25), (10, 10)],  # Different layer structures
@@ -153,13 +161,13 @@ class Models:
         }
 
         self.classifiers = {
+            "Base line": [DummyClassifier(strategy="most_frequent"), {}],  # Fine as is
+
             "Support Vector Machines": [svm.SVC(random_state=seed, probability=True, class_weight="balanced"), {
                 "C": [0.1, 1, 10, 100],  # Regularization strength
                 "degree": [2, 3, 4],  # Only used for "poly" kernel
                 "gamma": ["scale", "auto"],  # Kernel coefficient
             }],
-
-            "Base line": [DummyClassifier(strategy="most_frequent"), {}],  # Fine as is
 
             "Multi-layer Perceptron": [MLPClassifier(random_state=seed, max_iter=5000), {
                 "hidden_layer_sizes": [(10,), (25,), (25, 25), (10, 10)],  # Different layer structures
