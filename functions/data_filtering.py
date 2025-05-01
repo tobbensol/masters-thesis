@@ -32,7 +32,9 @@ def complete_flight_filter(departure: str, arrival: str, epsilon: float = 0.03) 
         start_longitude, start_latitude = flight.first('5 sec').data.get(['longitude', 'latitude']).median().values
         end_longitude, end_latitude = flight.last('5 sec').data.get(['longitude', 'latitude']).median().values
 
-        # just the value I found filtered out the values the best
+        if pd.isna(start_longitude) or pd.isna(start_latitude) or pd.isna(end_longitude) or pd.isna(end_latitude):
+            return False
+
         return (abs(departure_airport.latitude - start_latitude) < epsilon) and \
             (abs(departure_airport.longitude - start_longitude) < epsilon) and \
             (abs(arrival_airport.latitude - end_latitude) < epsilon) and \
