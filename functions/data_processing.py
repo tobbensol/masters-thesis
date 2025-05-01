@@ -101,7 +101,7 @@ def clean_flight_data(data: np.ndarray[float], drop_duplicates: bool = False, f:
     cols = []
     for i in data.columns:
         col = data[i].to_numpy()
-        cols.append(savgol_filter(x=col, window_length=25, polyorder=2))
+        cols.append(savgol_filter(x=col, window_length=min(len(data)-1, 25), polyorder=2))
     data = np.array(cols).T
     return data
 
