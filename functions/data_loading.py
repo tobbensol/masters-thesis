@@ -8,13 +8,14 @@ from datetime import datetime, timedelta
 from typing import Callable, List, Tuple, Optional
 
 import requests
+from numpy.f2py.auxfuncs import throw_error
 from scipy.cluster.hierarchy import linkage
 from tqdm import tqdm
 from traffic.core import Traffic, Flight
 from pyopensky.trino import Trino
 from traffic.data import opensky
 
-from functions.data_filtering import filter_flights, ICAO_codes
+from functions.data_filtering import filter_flights, ICAO_codes, large_gap_filter
 from functions.data_processing import remove_outliers, split_flights, flight_persistence, sublevelset_persistence, \
     sublevelset_heading_persistence
 from functions.objects import PersistenceData
@@ -200,9 +201,26 @@ def linkage_cluster_persistances(trees: List[gudhi.simplex_tree.SimplexTree], pa
 
 
 def flights_from_query(query, file_name: str, delta_time: pd.Timedelta = pd.Timedelta(minutes=15), load_results=True):
-    if os.path.isfile(file_name) and load_results:
-        with open(file_name, "rb") as file:
-            return pickle.load(file)
+    flight_path = f"data/landings/Flights/{file_name}.pkl"
+    label_path = f"data/landings/Labels/{file_name}.pkl"
+    query_path = f"data/landings/Queries/{file_name}.pkl"
+
+    if os.path.isfile(flight_path) and os.path.isfile(label_path) and load_results:
+        with open(flight_path, "rb") as file:
+            flight = pickle.load(file)
+        with open(label_path, "rb") as file:
+            labels = pickle.load(file)
+        return flight, labels
+
+    if query is None:
+        if os.path.isfile(query_path):
+            with open(query_path, "rb") as file:
+                query = pickle.load(file)
+        else:
+            raise Exception("query file not found")
+    else:
+        with open(query_path, "wb") as file:
+            pickle.dump(query, file)
 
     flights = []
     other_data = []
@@ -228,16 +246,24 @@ def flights_from_query(query, file_name: str, delta_time: pd.Timedelta = pd.Time
         other_data.append([n_approaches, wind_speed_knts, visibility_m, temperature_deg])
 
     other_data = np.array(other_data)
-    with open(file_name, "wb") as file:
-        pickle.dump((flights, other_data), file)
+
+    filtered_flight_data = [(f, d) for f, d in zip(flights, other_data) if large_gap_filter(f)]
+    flights, other_data = zip(*filtered_flight_data)
+    other_data = np.array(other_data)
+
+    with open(flight_path, "wb") as file:
+        pickle.dump(flights, file)
+    with open(label_path, "wb") as file:
+        pickle.dump(other_data, file)
+
     return flights, other_data
 
 
-def get_flight_persistances(flights: List[Flight], file_name, load_results: bool = True) -> Tuple[PersistenceData, PersistenceData, PersistenceData, PersistenceData]:
-    path = f"data/{file_name}"
+def get_flight_persistances(flights, file_name, load_results: bool = True) -> Tuple[PersistenceData, PersistenceData, PersistenceData, PersistenceData]:
+    persistence_path = f"data/landings/Persistence/{file_name}.pkl"
 
-    if os.path.isfile(path) and load_results:
-        with open(path, "rb") as file:
+    if os.path.isfile(persistence_path) and load_results:
+        with open(persistence_path, "rb") as file:
             return pickle.load(file)
 
     LL_persistence, LL_paths = flight_persistence(flights)
@@ -253,6 +279,6 @@ def get_flight_persistances(flights: List[Flight], file_name, load_results: bool
     H_data = PersistenceData(H_persistence, H_paths, "H")
 
     pers_objects = (LL_data, A_data, S_data, H_data)
-    with open(path, "wb") as file:
+    with open(persistence_path, "wb") as file:
         pickle.dump(pers_objects, file)
     return pers_objects
