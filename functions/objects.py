@@ -69,40 +69,56 @@ class PersistenceData:
         self.landscapes = landscapes.reshape(landscapes.shape[0], landscapes.shape[2])
         return self.landscapes
 
-    def plot_diagram(self, index, axs=None, add_landscape:bool=False, save_svg=False):
-        if axs is None:
-            fig_count = 3 if add_landscape else 2
-            fig, axs = plt.subplots(1, fig_count, figsize=(6*fig_count, 5))
-            fig.subplots_adjust(wspace=0.3)
-
+    def plot_raw_path(self, ax, index):
+        """Plot the raw input trajectory on the given axis."""
         path = self.paths[index]
-        pers = self.persistence[index]
-        landscape = self.landscapes[index]
 
         if self.plot_text[1] != "Timestep":
             num_points = path.shape[0]
             colors = np.linspace(0, 1, num_points)
-            scatter = axs[0].scatter(path[:, 1], path[:, 0], c=colors, cmap="plasma", edgecolors="none", )
-            cbar = plt.colorbar(scatter, ax=axs[0])
+            scatter = ax.scatter(path[:, 1], path[:, 0], c=colors, cmap="plasma", edgecolors="none")
+            cbar = plt.colorbar(scatter, ax=ax)
             cbar.set_label("Time Step")
         else:
-            axs[0].scatter(path[:, 1], path[:, 0], cmap="plasma", edgecolors="none")
-        axs[0].set_title(self.plot_text[0], fontsize=16)
-        axs[0].set_xlabel(self.plot_text[1], fontsize=16)
-        axs[0].set_ylabel(self.plot_text[2], fontsize=16)
+            ax.scatter(path[:, 0], path[:, 1], cmap="plasma", edgecolors="none")
 
-        gudhi.persistence_graphical_tools.plot_persistence_diagram(pers, axes=axs[1])
-        axs[1].set_title("Persistence Diagram")
+        ax.set_title(self.plot_text[0], fontsize=16)
+        ax.set_xlabel(self.plot_text[1], fontsize=16)
+        ax.set_ylabel(self.plot_text[2], fontsize=16)
+
+    def plot_persistence(self, ax, index):
+        """Plot the persistence diagram on the given axis."""
+        pers = self.persistence[index]
+
+        gudhi.persistence_graphical_tools.plot_persistence_diagram(pers, axes=ax)
+        ax.set_title("Persistence Diagram", fontsize=16)
+
+    def plot_landscape(self, ax, index):
+        """Plot the persistence landscape on the given axis."""
+        model = self.landscape_model
+        landscape = self.landscapes[index]
+
+        num_landscapes = model.num_landscapes
+        resolution = model.resolution
+        for i in range(num_landscapes):
+            ax.plot(landscape[i * resolution:(i + 1) * resolution], label=f"Landscape {i + 1}")
+        ax.legend()
+        ax.set_title("Persistence Landscape", fontsize=16)
+        ax.set_xlabel("Resolution steps", fontsize=16)
+
+    def plot_diagram(self, index, axs=None, add_landscape: bool = False, save_svg=False):
+        if axs is None:
+            fig_count = 3 if add_landscape else 2
+            fig, axs = plt.subplots(1, fig_count, figsize=(6 * fig_count, 5))
+            fig.subplots_adjust(wspace=0.3)
+        else:
+            fig = plt.gcf()
+
+        self.plot_raw_path(axs[0], index)
+        self.plot_persistence(axs[1], index)
 
         if add_landscape:
-            num_landscapes = self.landscape_model.num_landscapes
-            resolution = self.landscape_model.resolution
-            for i in range(num_landscapes):
-                axs[2].plot(landscape[i * resolution:(i + 1) * resolution], label=f"Landscape {i + 1}")
-
-            axs[2].legend()
-            axs[2].set_title("Persistence Landscape", fontsize=16)
-            axs[2].set_xlabel("Resolution steps", fontsize=16)
+            self.plot_landscape(axs[2], index)
 
         return fig
 
