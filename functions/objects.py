@@ -69,7 +69,7 @@ class PersistenceData:
         self.landscapes = landscapes.reshape(landscapes.shape[0], landscapes.shape[2])
         return self.landscapes
 
-    def plot_raw_path(self, ax, index):
+    def plot_raw_path(self, ax, index, colour_bar=True):
         """Plot the raw input trajectory on the given axis."""
         path = self.paths[index]
 
@@ -77,14 +77,16 @@ class PersistenceData:
             num_points = path.shape[0]
             colors = np.linspace(0, 1, num_points)
             scatter = ax.scatter(path[:, 1], path[:, 0], c=colors, cmap="plasma", edgecolors="none")
-            cbar = plt.colorbar(scatter, ax=ax)
-            cbar.set_label("Time Step")
+            if colour_bar:
+                cbar = plt.colorbar(scatter, ax=ax)
+                cbar.set_label("Time Step")
         else:
-            ax.scatter(path[:, 0], path[:, 1], cmap="plasma", edgecolors="none")
+            scatter = ax.scatter(path[:, 0], path[:, 1], cmap="plasma", edgecolors="none")
 
         ax.set_title(self.plot_text[0], fontsize=16)
         ax.set_xlabel(self.plot_text[1], fontsize=16)
         ax.set_ylabel(self.plot_text[2], fontsize=16)
+        return scatter
 
     def plot_persistence(self, ax, index):
         """Plot the persistence diagram on the given axis."""
