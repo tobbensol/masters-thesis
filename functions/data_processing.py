@@ -142,38 +142,6 @@ def build_sublevelset_filtration(Y):
 
     return st
 
-
-def remove_outliers(flight: Flight) -> Flight:
-    """
-    this doesn't work for flights over the pacific ocean, would have to import some library for that
-    :param flight: The flight you would like to remove outliars from
-    :return: The same flight without outliers
-    """
-    df = flight.data.copy()
-
-    # Calculate differences between consecutive latitude and longitude values
-    lat_diff = np.diff(df['latitude'])
-    lon_diff = np.diff(df['longitude'])
-
-    # Approximate distance using Euclidean formula on lat/lon changes
-    approx_distances = np.sqrt(lat_diff ** 2 + lon_diff ** 2)
-
-    # Insert NaN at the beginning to align with DataFrame length
-    approx_distances = np.insert(approx_distances, 0, np.nan)
-    df['approx_distance'] = approx_distances
-
-    # Define thresholds for approximate distances
-    min_distance_threshold = 0.0001  # Minimum allowable distance in degrees
-    max_distance_threshold = 0.005  # Maximum allowable distance in degrees
-
-    # Filter out rows where distance is either too small (likely duplicate) or too large (likely outlier)
-    df_cleaned = df[
-        ((df['approx_distance'] >= min_distance_threshold) & (df['approx_distance'] <= max_distance_threshold)) |
-        (df['approx_distance'].isna())  # Keep the first point
-        ]
-    new_flight = Flight(df_cleaned)
-    return new_flight
-
 def split_flights(traffic: Traffic, threshold: timedelta = timedelta(seconds=60)) -> List[Flight]:
     flights = []
     for flight in traffic:

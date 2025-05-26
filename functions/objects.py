@@ -135,7 +135,7 @@ class PersistenceData:
                                 figsize=(5 * object_fig_count, 5 * num_objects))  # 3 rows, N columns
 
         if num_objects == 1:
-            axs = np.expand_dims(axs, axis=1)  # Ensure axs is always 2D (3 x N)
+            axs = np.expand_dims(axs, axis=1)
 
         for idx, obj in enumerate(objects):
             obj.plot_diagram(index, axs=axs[idx, :], add_landscape=add_landscape)  # Pass one column of subplots to each object
