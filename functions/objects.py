@@ -10,6 +10,8 @@ from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 from sklearn import svm
 
+from functions.gudhi_persistence_plotting import plot_persistence_diagram
+
 
 class PersistenceData:
     def __init__(self, persistence, paths, type, resolution=10, num_landscapes=3):
@@ -92,7 +94,11 @@ class PersistenceData:
         """Plot the persistence diagram on the given axis."""
         pers = self.persistence[index]
 
-        gudhi.persistence_graphical_tools.plot_persistence_diagram(pers, axes=ax)
+        plot_persistence_diagram(pers, axes=ax)
+
+        ax.set_xlim(left=0)
+        ax.set_ylim(bottom=0)
+
         ax.set_title("Persistence Diagram", fontsize=16)
 
     def plot_landscape(self, ax, index):
