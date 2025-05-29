@@ -16,7 +16,7 @@ from pyopensky.trino import Trino
 from traffic.data import opensky
 
 from functions.data_filtering import filter_flights, ICAO_codes, large_gap_filter
-from functions.data_processing import split_flights, flight_persistence, sublevelset_persistence, \
+from functions.data_processing import split_flights, second_dim_persistence, sublevelset_persistence, \
     sublevelset_heading_persistence
 from functions.objects import PersistenceData
 
@@ -48,7 +48,7 @@ def get_flight_persistence(flights: List[Flight], file_name: str, load_results: 
             trees, paths = pickle.load(file)
             return trees, paths, file_name
 
-    trees, paths = flight_persistence(flights)
+    trees, paths = second_dim_persistence(flights, ["Latitude", "Longitude"])
 
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "wb") as file:
@@ -84,7 +84,7 @@ def get_flight_persistances(flights, file_name, load_results: bool = True) -> Tu
         with open(persistence_path, "rb") as file:
             return pickle.load(file)
 
-    LL_persistence, LL_paths = flight_persistence(flights)
+    LL_persistence, LL_paths = second_dim_persistence(flights, ["Latitude", "Longitude"])
     LL_data = PersistenceData(LL_persistence, LL_paths, "LL")
 
     A_persistence, A_paths = sublevelset_persistence(flights, "geoaltitude")

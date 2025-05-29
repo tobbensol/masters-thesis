@@ -26,13 +26,13 @@ def get_date(flights: Traffic) -> datetime:
         timestamp: datetime = flight.first('30 sec').data.get(['timestamp']).median().values[0]
         yield timestamp
 
-def flight_persistence(flights) -> Tuple[List[gudhi.simplex_tree.SimplexTree], List[numpy.ndarray]]:
+def second_dim_persistence(flights, columns: List[str]) -> Tuple[List[gudhi.simplex_tree.SimplexTree], List[numpy.ndarray]]:
     trees = []
     paths = []
     for i in tqdm(range(len(flights))):
         f = (lambda x: remove_outliers_dbscan(x, min_samples=25, eps = 0.05))
 
-        data = get_columns_timestamp_index(flights[i], ['latitude', 'longitude'])
+        data = get_columns_timestamp_index(flights[i], columns)
         data = clean_flight_data(data, drop_duplicates=True, f=f)
 
         alpha_complex: gudhi.alpha_complex = AlphaComplex(points=data)
