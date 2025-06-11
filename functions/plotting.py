@@ -17,11 +17,13 @@ def plot_cluster_scatters(clustering, pers_data, method, sample_count):
     gs = gridspec.GridSpec(n_clusters, sample_count + 1, width_ratios=[1] * sample_count + [0.05], wspace=0.15, hspace=0.2)
 
     axs = np.empty((n_clusters, sample_count), dtype=object)
+    max_cluster_size = 0
 
     # Fill subplots
-    for i, cluster_id in enumerate(cluster_ids):
+    for i, cluster_id in list(enumerate(cluster_ids))[::-1]:
         cluster = np.where(clustering == cluster_id)[0]
-        samples = np.random.choice(cluster, size=min(sample_count, len(cluster)), replace=False)
+        size = min(sample_count, len(cluster))
+        samples = np.random.choice(cluster, size=size, replace=False)
 
         for j, sample in enumerate(samples):
             ax = fig.add_subplot(gs[i, j])
@@ -34,8 +36,12 @@ def plot_cluster_scatters(clustering, pers_data, method, sample_count):
             else:
                 ax.set_ylabel(f"Cluster {i}\nLatitude")
 
-            if i < n_clusters - 1:
+            if j + 1 > max_cluster_size:
+                ax.set_xlabel("Longitude")
+            else:
                 ax.set_xlabel("")
+
+        max_cluster_size = max(size, max_cluster_size)
 
     # Add colorbar in final column
     cbar_ax = fig.add_subplot(gs[:, -1])
@@ -60,11 +66,13 @@ def plot_cluster_pers_diagrams(clustering, pers_data: PersistenceData, method, s
     gs = gridspec.GridSpec(n_clusters, sample_count + 1, width_ratios=[1] * sample_count + [0.05], wspace=0.2, hspace=0.2)
 
     axs = np.empty((n_clusters, sample_count), dtype=object)
+    max_cluster_size = 0
 
     # Fill subplots
-    for i, cluster_id in enumerate(cluster_ids):
+    for i, cluster_id in list(enumerate(cluster_ids))[::-1]:
         cluster = np.where(clustering == cluster_id)[0]
-        samples = np.random.choice(cluster, size=min(sample_count, len(cluster)), replace=False)
+        size = min(sample_count, len(cluster))
+        samples = np.random.choice(cluster, size=size, replace=False)
 
         for j, sample in enumerate(samples):
             ax = fig.add_subplot(gs[i, j])
@@ -78,8 +86,12 @@ def plot_cluster_pers_diagrams(clustering, pers_data: PersistenceData, method, s
             else:
                 ax.set_ylabel(f"Cluster {i}\nDeath")
 
-            if i < n_clusters - 1:
+            if j+1 > max_cluster_size:
+                ax.set_xlabel("Birth")
+            else:
                 ax.set_xlabel("")
+
+        max_cluster_size = max(size, max_cluster_size)
 
     fig.text(0.5, 0.99, f"Paths of {method_name} clusters", ha='center', va='top', fontsize=20)
 
