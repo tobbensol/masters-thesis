@@ -84,7 +84,7 @@ def get_flight_persistances(flights, file_name, load_results: bool = True) -> Tu
         with open(persistence_path, "rb") as file:
             return pickle.load(file)
 
-    LL_persistence, LL_paths = second_dim_persistence(flights, ["Latitude", "Longitude"])
+    LL_persistence, LL_paths = second_dim_persistence(flights, ["latitude", "longitude"])
     LL_data = PersistenceData(LL_persistence, LL_paths, "LL")
 
     A_persistence, A_paths = sublevelset_persistence(flights, "geoaltitude")
