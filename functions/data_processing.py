@@ -88,6 +88,33 @@ def sublevelset_heading_persistence(flights: List[Flight]):
     return trees, paths
 
 
+def get_flight_statistics(flights: List[Flight]):
+    statistics = []
+    for flight in flights:
+        data = flight.data.copy(deep=True)
+
+        unwrapped = np.unwrap(np.deg2rad(data["track"]), period=2 * np.pi, discont=np.pi)
+        max_unwrapped = unwrapped.max()
+        min_unwrapped = unwrapped.min()
+        diff_unwrapped = max_unwrapped - min_unwrapped
+
+        max_velocity = data["groundspeed"].max()
+        min_velocity = data["groundspeed"].min()
+        mean_velocity = data["groundspeed"].mean()
+        max_heading = data["vertical_rate"].max()
+        min_heading = data["vertical_rate"].min()
+        mean_heading = data["vertical_rate"].mean()
+        longitude_diff = data["longitude"].max() - data["longitude"].min()
+        latitude_diff = data["latitude"].max() - data["latitude"].min()
+
+        statistics.append(
+            [max_unwrapped, min_unwrapped, diff_unwrapped, max_velocity, min_velocity, mean_velocity, max_heading,
+             min_heading, mean_heading, longitude_diff, latitude_diff])
+
+    statistics = np.array(statistics)
+    return statistics
+
+
 def clean_flight_data(data: np.ndarray[float], drop_duplicates: bool = False, f: Callable[[np.ndarray[float]], np.ndarray[bool]]=None) -> np.ndarray:
     if drop_duplicates:
         data = data.drop_duplicates()

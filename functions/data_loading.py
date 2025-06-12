@@ -16,8 +16,7 @@ from pyopensky.trino import Trino
 from traffic.data import opensky
 
 from functions.data_filtering import filter_flights, ICAO_codes, large_gap_filter
-from functions.data_processing import split_flights, second_dim_persistence, sublevelset_persistence, \
-    sublevelset_heading_persistence
+from functions.data_processing import split_flights, second_dim_persistence, sublevelset_persistence, sublevelset_heading_persistence, get_flight_statistics
 from functions.objects import PersistenceData
 
 client_id = 'b72279bf-a268-4cf1-96bb-2f2e290349df'
@@ -54,7 +53,6 @@ def get_flight_persistence(flights: List[Flight], file_name: str, load_results: 
     with open(path, "wb") as file:
         pickle.dump((trees, paths), file)
     return trees, paths, file_name
-
 
 def get_condensed_distance_matrix(trees: List[gudhi.simplex_tree.SimplexTree], file_name: str, load_results=True):
     file_name = f"distance_matrices/{file_name}"
@@ -102,17 +100,21 @@ def get_flight_persistances(flights, file_name, load_results: bool = True) -> Tu
     return pers_objects
 
 
-def flights_from_query(query, file_name: str, delta_time: pd.Timedelta = pd.Timedelta(minutes=15), load_results=True):
+def flights_from_query(query, file_name: str, delta_time: pd.Timedelta = pd.Timedelta(minutes=15), load_results: bool = True):
     flight_path = f"data/landings/Flights/{file_name}.pkl"
     label_path = f"data/landings/Labels/{file_name}.pkl"
     query_path = f"data/landings/Queries/{file_name}.pkl"
+    stats_path = f"data/landings/stats/{file_name}.pkl"
 
-    if os.path.isfile(flight_path) and os.path.isfile(label_path) and load_results:
+
+    if os.path.isfile(flight_path) and os.path.isfile(label_path) and os.path.isfile(stats_path) and load_results:
         with open(flight_path, "rb") as file:
-            flight = pickle.load(file)
+            flights = pickle.load(file)
         with open(label_path, "rb") as file:
             labels = pickle.load(file)
-        return flight, labels
+        with open(stats_path, "rb") as file:
+            stats = pickle.load(file)
+        return flights, labels, stats
 
     if query is None:
         if os.path.isfile(query_path):
@@ -152,13 +154,17 @@ def flights_from_query(query, file_name: str, delta_time: pd.Timedelta = pd.Time
     filtered_flight_data = [(f, d) for f, d in zip(flights, other_data) if large_gap_filter(f)]
     flights, other_data = zip(*filtered_flight_data)
     other_data = np.array(other_data)
+    stats = get_flight_statistics(flights)
 
     with open(flight_path, "wb") as file:
         pickle.dump(flights, file)
     with open(label_path, "wb") as file:
         pickle.dump(other_data, file)
+    with open(stats_path, "wb") as file:
+        pickle.dump(stats, file)
 
-    return flights, other_data
+    return flights, other_data, stats
+
 
 
 def get_data_range(origin: str, destination: str, start: datetime, stop: datetime, load_results: bool = True) -> Tuple[List[Flight], str]:
