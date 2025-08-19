@@ -29,8 +29,8 @@ def complete_flight_filter(departure: str, arrival: str, epsilon: float = 0.03) 
         departure_airport = airports[ICAO_codes[departure]]
         arrival_airport = airports[ICAO_codes[arrival]]
 
-        start_longitude, start_latitude = flight.first('5 sec').data.get(['longitude', 'latitude']).median().values
-        end_longitude, end_latitude = flight.last('5 sec').data.get(['longitude', 'latitude']).median().values
+        start_longitude, start_latitude = flight.first('5 sec').data.get(['Longitude', 'Latitude']).median().values
+        end_longitude, end_latitude = flight.last('5 sec').data.get(['Longitude', 'Latitude']).median().values
 
         if pd.isna(start_longitude) or pd.isna(start_latitude) or pd.isna(end_longitude) or pd.isna(end_latitude):
             return False
@@ -63,7 +63,7 @@ def large_gap_filter(flight: Flight):
     timestamps = flight.data.iloc[indexes]["timestamp"].to_numpy()
 
     time_gap = pd.Series(timestamps, index=indexes).diff()
-    if any(time_gap > pd.Timedelta(seconds=30)):
+    if any(time_gap > pd.Timedelta(seconds=45)):
         return False
     else:
         return len(timestamps) > 250

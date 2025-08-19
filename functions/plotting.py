@@ -55,6 +55,7 @@ def plot_cluster_scatters(clustering, pers_data, method, sample_count):
     top_margin = 1 - (title_space_inches / fig_height_inches)  # relative coordinate
 
     fig.subplots_adjust(top=top_margin)
+    return fig
 
 def plot_cluster_pers_diagrams(clustering, pers_data: PersistenceData, method, sample_count):
     cluster_ids = np.unique(clustering)
@@ -93,13 +94,14 @@ def plot_cluster_pers_diagrams(clustering, pers_data: PersistenceData, method, s
 
         max_cluster_size = max(size, max_cluster_size)
 
-    fig.text(0.5, 0.99, f"Paths of {method_name} clusters", ha='center', va='top', fontsize=20)
+    #fig.text(0.5, 0.99, f"Paths of {method_name} clusters", ha='center', va='top', fontsize=20)
 
     title_space_inches = 0.4 + 0.02*n_clusters # this works for some reason
     fig_height_inches = fig.get_figheight()
     top_margin = 1 - (title_space_inches / fig_height_inches)  # relative coordinate
 
     fig.subplots_adjust(top=top_margin)
+    return fig
 
 
 def plot_scatter_matrix(data):

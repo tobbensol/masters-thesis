@@ -192,18 +192,19 @@ def get_data_range(origin: str, destination: str, start: datetime, stop: datetim
             data.append(result.copy())
 
     # combine data
+    print(data)
     result = pd.concat(data, axis="rows", ignore_index=True)
 
     # make flight object
-    final = result.rename(columns={'time': 'timestamp', 'lat': 'latitude', 'lon': 'longitude'})
+    final = result.rename(columns={'time': 'timestamp', 'lat': 'Latitude', 'lon': 'Longitude'})
     flights = Traffic(final)
-    flights.data = flights.data.dropna(subset=["heading", "latitude", "longitude"])
-    final_list = split_flights(flights)
+    flights.data = flights.data.dropna(subset=["heading", "Latitude", "Longitude"])
+    final = split_flights(flights)
 
     # cache result
     with open(path, "wb") as file:
-        pickle.dump(final_list, file)
-    return final_list, file_name
+        pickle.dump(final, file)
+    return final, file_name
 
 
 def get_weather_station_id(name: str) -> str:

@@ -14,7 +14,7 @@ from functions.gudhi_persistence_plotting import plot_persistence_diagram
 
 
 class PersistenceData:
-    def __init__(self, persistence, paths, type, resolution=10, num_landscapes=3):
+    def __init__(self, persistence, paths, type, resolution=15, num_landscapes=3):
         self.persistence = persistence
         self.paths = paths
         self.stats = self.compute_persistence_stats()
@@ -148,7 +148,7 @@ class PersistenceData:
 
         plt.tight_layout()
         plt.show()
-
+        return fig
 
 class Models:
     def __init__(self, seed):

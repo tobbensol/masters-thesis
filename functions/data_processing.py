@@ -169,7 +169,7 @@ def build_sublevelset_filtration(Y):
 
     return st
 
-def split_flights(traffic: Traffic, threshold: timedelta = timedelta(seconds=60)) -> List[Flight]:
+def split_flights(traffic: Traffic, threshold: timedelta = timedelta(seconds=45)) -> List[Flight]:
     flights = []
     for flight in traffic:
         # Calculate time differences between consecutive rows
