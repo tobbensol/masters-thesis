@@ -94,6 +94,7 @@ def get_flight_statistics(flights: List[Flight]):
         data = flight.data.copy(deep=True)
 
         unwrapped = np.unwrap(np.deg2rad(data["track"]), period=2 * np.pi, discont=np.pi)
+
         max_unwrapped = unwrapped.max()
         min_unwrapped = unwrapped.min()
         diff_unwrapped = max_unwrapped - min_unwrapped
@@ -101,15 +102,21 @@ def get_flight_statistics(flights: List[Flight]):
         max_velocity = data["groundspeed"].max()
         min_velocity = data["groundspeed"].min()
         mean_velocity = data["groundspeed"].mean()
+
         max_heading = data["vertical_rate"].max()
         min_heading = data["vertical_rate"].min()
         mean_heading = data["vertical_rate"].mean()
+
+        max_altitude = data["geoaltitude"].max()
+        min_altitude = data["geoaltitude"].min()
+        mean_altitude = data["geoaltitude"].mean()
+
         longitude_diff = data["longitude"].max() - data["longitude"].min()
         latitude_diff = data["latitude"].max() - data["latitude"].min()
 
         statistics.append(
             [max_unwrapped, min_unwrapped, diff_unwrapped, max_velocity, min_velocity, mean_velocity, max_heading,
-             min_heading, mean_heading, longitude_diff, latitude_diff])
+             min_heading, mean_heading, max_altitude, min_altitude, mean_altitude, longitude_diff, latitude_diff])
 
     statistics = np.array(statistics)
     return statistics

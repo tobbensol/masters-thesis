@@ -78,7 +78,7 @@ class PersistenceData:
         if self.plot_text[1] != "Timestep":
             num_points = path.shape[0]
             colors = np.linspace(0, 1, num_points)
-            scatter = ax.scatter(path[:, 1], path[:, 0], c=colors, cmap="plasma", edgecolors="none")
+            scatter = ax.scatter(path[:, 1], path[:, 0], c=colors, cmap="plasma", edgecolors="none", s=5)
             if colour_bar:
                 cbar = plt.colorbar(scatter, ax=ax)
                 cbar.set_label("Time Step")
@@ -193,14 +193,14 @@ class Models:
                 "gamma": ["scale", "auto"],  # Kernel coefficient
             }],
 
-            "Multi-layer Perceptron": [MLPClassifier(random_state=seed, max_iter=5000), {
+            "Multi-layer Perception": [MLPClassifier(random_state=seed, max_iter=5000), {
                 "hidden_layer_sizes": [(10,), (25,), (25, 25), (10, 10)],  # Different layer structures
-                "alpha": [0.001, 0.01],  # L2 regularization
+                "alpha": [0.0001, 0.001, 0.01],  # L2 regularization
                 "learning_rate": ["constant", "adaptive"],  # Learning rate strategy
             }],
 
             "K Nearest Neighbors": [KNeighborsClassifier(), {
-                "n_neighbors": [5, 15, 50],  # Range of neighbors
+                "n_neighbors": [5, 10, 25, 50],  # Range of neighbors
                 "weights": ["uniform", "distance"],  # Weighting scheme
             }],
 
@@ -210,7 +210,8 @@ class Models:
             }],
 
             "Decision Tree Classifier": [DecisionTreeClassifier(random_state=seed, class_weight="balanced"), {
-                "max_depth": [5, 10, 20],  # Depth of the tree
+                "max_depth": [5, 10, 20],
                 "min_samples_split": [2, 3, 4],
+                "min_samples_leaf": [1, 2, 3]
             }]
         }
